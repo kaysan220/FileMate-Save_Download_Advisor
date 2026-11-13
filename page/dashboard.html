@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FileMate — Ikhtisar Safe Download Advisor</title>
+    <link rel="stylesheet" href="../tampilan/css/style.css">
+</head>
+<body>
+
+    <nav class="navbar">
+        <a href="dashboard.html" class="filemate-logo" aria-label="FileMate — Safe Download Advisor">
+            <img src="../image/filemate_dark.png" alt="FileMate — Safe Download Advisor" class="logo-img logo-img-dark">
+            <img src="../image/filemate-light.png" alt="FileMate — Safe Download Advisor" class="logo-img logo-img-light">
+        </a>
+        <div class="nav-actions">
+            <a href="index.html" class="btn btn-ghost btn-sm">🔍 Pemeriksa File</a>
+            <a href="play.html" class="btn btn-primary btn-sm">🎮 Lab Simulasi</a>
+            <a href="guide.html" class="btn btn-ghost btn-sm">📘 Panduan</a>
+            <button class="btn btn-ghost btn-sm" onclick="openTeamCredits()">🛡️ Tim Satgas</button>
+            <button class="btn btn-ghost btn-sm" id="themeToggle" onclick="toggleTheme()">☀️ Light</button>
+        </div>
+    </nav>
+
+    <main class="container">
+
+        <!-- 1. HERO -->
+        <section class="dash-hero">
+            <div>
+                <span class="dash-eyebrow">Safe Download Advisor · Edukasi Keamanan Siber</span>
+                <h1 class="dash-title">Nama File Bisa Menipu.<br><span class="accent">Isinya Tidak.</span></h1>
+                <p class="dash-sub">
+                    FileMate membantumu mengenali file berbahaya sebelum terlanjur dibuka. Periksa ekstensi asli, segel biner (<em>Magic Bytes</em>), dan sidik jari SHA-256 sebuah file, lalu asah ketelitianmu lewat simulasi kasus nyata yang sering menjebak mahasiswa.
+                </p>
+                <div class="dash-cta">
+                    <a href="play.html" class="btn btn-primary">🎮 Mulai Simulasi</a>
+                    <a href="index.html" class="btn btn-ghost">🔍 Periksa File Saya</a>
+                    <a href="guide.html" class="btn btn-ghost">📘 Pelajari Panduan</a>
+                </div>
+            </div>
+
+            <div class="hero-demo" id="heroDemo" aria-live="polite">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span class="mono" style="font-size: 0.74rem; color: var(--text-muted);">📁 ~/Downloads/Email_HRD/</span>
+                    <span style="font-size: 0.7rem; font-weight: 700; color: var(--accent);">X-RAY</span>
+                </div>
+                <div class="xray-box" style="margin: 0 0 10px;">
+                    <div class="xray-scanline"></div>
+                    <div id="heroDemoName" class="mono" style="font-size: 1rem; font-weight: 600;"></div>
+                </div>
+                <div class="hero-demo-row"><span>Magic Bytes</span><strong id="heroDemoMagic" class="mono"></strong></div>
+                <div class="hero-demo-row"><span>File Permission</span><strong id="heroDemoPerm" class="mono"></strong></div>
+                <div id="heroDemoVerdict" style="font-size: 0.84rem; padding-top: 10px; border-top: 1px solid var(--border-color);"></div>
+                <button type="button" id="heroDemoBtn" class="btn btn-ghost btn-sm" style="width: 100%; margin-top: 12px;">🔍 X-Ray File Ini</button>
+            </div>
+        </section>
+
+        <!-- Statistik singkat (diisi main.js dari /api/dashboard-stats) -->
+        <div class="dash-stats" id="dashStats">
+            <div class="stat-tile"><div class="stat-value" id="statSkenario">–</div><div class="stat-label">Skenario ancaman</div></div>
+            <div class="stat-tile"><div class="stat-value" id="statFile">–</div><div class="stat-label">File latihan</div></div>
+            <div class="stat-tile"><div class="stat-value" id="statMalware" style="color: var(--danger);">–</div><div class="stat-label">Jebakan tersembunyi</div></div>
+            <div class="stat-tile"><div class="stat-value" id="statAman" style="color: var(--safe);">–</div><div class="stat-label">File aman</div></div>
+            <div class="stat-tile"><div class="stat-value" id="statSesi">–</div><div class="stat-label">Sesi dimainkan</div></div>
+            <div class="stat-tile"><div class="stat-value" id="statRataSkor">–</div><div class="stat-label">Rata-rata skor</div></div>
+        </div>
+
+        <!-- 2. MASALAH -->
+        <section class="dash-section">
+            <div class="dash-section-label">Masalahnya</div>
+            <h2 class="dash-section-title">Satu Klik yang Salah Bisa Mahal Harganya</h2>
+            <p class="dash-prose">
+                Lampiran dari grup kelas, template tugas instan, installer dari forum, atau file dari flashdisk teman. Semuanya terlihat biasa saja. Masalahnya, kita sering langsung membukanya hanya karena <strong>namanya terlihat aman</strong>.
+            </p>
+            <p class="dash-prose">
+                Padahal <code>Kontrak_Magang.pdf</code> bisa saja sebenarnya <code>Kontrak_Magang.pdf.exe</code>. Foto <code>.jpg</code> bisa berisi program tersembunyi. Installer yang namanya sama persis bisa sudah disisipi trojan. Sekali dibuka, <em>infostealer</em> bisa mencuri password dan sesi akunmu, atau <em>ransomware</em> bisa mengunci semua tugas kuliahmu.
+            </p>
+            <div class="dash-cards">
+                <div class="dash-card danger-tone">
+                    <div class="dash-card-icon">🎭</div>
+                    <h3>Ekstensi Ganda</h3>
+                    <p><code>.pdf.exe</code> dan <code>.docx.vbs</code> menyamar sebagai dokumen biasa.</p>
+                </div>
+                <div class="dash-card danger-tone">
+                    <div class="dash-card-icon">🧬</div>
+                    <h3>File Dimodifikasi</h3>
+                    <p>Nama dan ukurannya sama, tapi isinya sudah diubah pihak ketiga.</p>
+                </div>
+                <div class="dash-card danger-tone">
+                    <div class="dash-card-icon">😮‍💨</div>
+                    <h3>Lelah Memeriksa</h3>
+                    <p>Di tengah puluhan file, satu jebakan mudah lolos.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. APA ITU FILEMATE -->
+        <section class="dash-section">
+            <div class="dash-firewall">
+                <div class="dash-section-label">Apa itu FileMate</div>
+                <h2 class="dash-section-title">Latih Dirimu Menjadi <em>Human Firewall</em></h2>
+                <p class="dash-prose">
+                    FileMate adalah aplikasi web edukasi interaktif yang mengajarkan cara memverifikasi keaslian file secara mandiri, dengan cara yang sama seperti analis keamanan memeriksanya. Tujuannya sederhana: membangun kebiasaan <strong>teliti dan skeptis</strong> sebelum membuka file apa pun, karena pertahanan pertama ada di tangan penggunanya sendiri.
+                </p>
+            </div>
+        </section>
+
+        <!-- 4. FITUR -->
+        <section class="dash-section">
+            <div class="dash-section-label">Fitur</div>
+            <h2 class="dash-section-title">Tiga Cara FileMate Membantumu</h2>
+            <div class="dash-cards">
+                <div class="dash-card">
+                    <div class="dash-card-icon">🔍</div>
+                    <h3>Pemeriksa File Lokal</h3>
+                    <p>Seret file milikmu untuk melihat ekstensi aslinya, membaca <em>Magic Bytes Header</em>, dan menghitung kode SHA-256. Cocokkan dengan checksum resmi dari developer, atau cek reputasinya di VirusTotal hanya lewat hash-nya. <strong>File-mu tidak pernah diunggah ke mana pun.</strong></p>
+                    <a href="index.html" class="dash-card-link">Periksa file &rarr;</a>
+                </div>
+                <div class="dash-card">
+                    <div class="dash-card-icon">🎮</div>
+                    <h3>Lab Simulasi Ancaman</h3>
+                    <p>Hadapi 3 kasus acak yang diangkat dari kejadian sehari-hari: email palsu dari HRD magang, installer dari forum, sampai flashdisk teman yang terinfeksi. Periksa setiap file dengan X-Ray Inspect dan Cek SHA-256, lalu putuskan: <strong>buka atau hapus?</strong> Setiap keputusan punya akhir cerita.</p>
+                    <a href="play.html" class="dash-card-link">Mulai simulasi &rarr;</a>
+                </div>
+                <div class="dash-card">
+                    <div class="dash-card-icon">📊</div>
+                    <h3>Skor Risiko &amp; Panduan</h3>
+                    <p>Dapatkan skor ketelitian 0–100, kategori risiko perilaku (Rendah, Sedang, atau Tinggi), dan diagnosis kelemahanmu. Lanjutkan dengan panduan perintah Linux dan Windows yang bisa langsung kamu praktikkan di perangkatmu sendiri.</p>
+                    <a href="guide.html" class="dash-card-link">Buka panduan &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div class="modal-backdrop" id="modalBackdrop">
+        <div class="modal-card" id="modalCard">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+                <h3 id="modalTitle" style="font-size: 1.05rem;"></h3>
+                <button class="btn btn-ghost btn-sm" onclick="closeModal()">✕</button>
+            </div>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <footer class="site-footer">
+        Dikembangkan oleh <strong>Tim Satgas Salah Download - Polibatam</strong> &bull;
+        <a href="javascript:void(0)" onclick="openTeamCredits()" style="color: var(--accent); text-decoration: none; font-weight: 600;">Lihat Profil Tim Pengembang</a>
+    </footer>
+
+    <script src="../tampilan/js/scenario_data.js"></script>
+    <script src="../tampilan/js/main.js"></script>
+</body>
+</html>

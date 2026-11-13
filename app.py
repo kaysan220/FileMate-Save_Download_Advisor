@@ -9,7 +9,8 @@
 import os
 from flask import Flask, jsonify, request, send_from_directory, redirect
 from core.algorithms import (
-    baca_skenario, nilai, tulis_log, baca_leaderboard, tulis_feedback
+    baca_skenario, nilai, tulis_log, baca_leaderboard, tulis_feedback,
+    ringkasan_dashboard
 )
 from core.linux_utils import jalankan_sha256sum_linux, jalankan_inspeksi_linux
 
@@ -30,7 +31,7 @@ def tambah_security_headers(response):
 # Rute Halaman Statis Frontend (page/ dan tampilan/)
 @app.route("/")
 def root_index():
-    return redirect("/page/index.html")
+    return redirect("/page/dashboard.html")
 
 
 @app.route("/page/<path:filename>")
@@ -41,6 +42,11 @@ def serve_pages(filename):
 @app.route("/tampilan/<path:filename>")
 def serve_assets(filename):
     return send_from_directory(os.path.join(BASE_DIR, "tampilan"), filename)
+
+
+@app.route("/image/<path:filename>")
+def serve_images(filename):
+    return send_from_directory(os.path.join(BASE_DIR, "image"), filename)
 
 
 # =====================================================================
@@ -57,6 +63,12 @@ def api_start_session():
 def api_get_leaderboard():
     """Membaca daftar peringkat dari data/hasil.csv (Tugas Kaysan & Yazid)."""
     return jsonify(baca_leaderboard(limit=6))
+
+
+@app.route("/api/dashboard-stats", methods=["GET"])
+def api_dashboard_stats():
+    """Ringkasan statistik skenario & sesi untuk halaman dashboard.html."""
+    return jsonify(ringkasan_dashboard())
 
 
 @app.route("/api/inspect", methods=["GET"])

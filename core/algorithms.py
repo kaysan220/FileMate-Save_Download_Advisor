@@ -7,6 +7,7 @@
 #   3. sensor_nama()        -> Pseudonimisasi nama user (R****T) & Sanitasi Anti-XSS
 #   4. tulis_log()          -> Menyimpan skor ke hasil.csv (Anti-CSV Injection)
 #   5. tulis_feedback()     -> Menyimpan masukan responden ke feedback_user.csv
+#   6. ringkasan_dashboard()-> Statistik ikhtisar untuk halaman dashboard.html
 # =====================================================================
 import os
 import json
@@ -173,3 +174,51 @@ def tulis_feedback(inisial_user, skor, pesan_saran):
         writer.writerow([kode_resp, sanitasi_teks_csv(inisial_user, 10), int(skor), waktu_skrg, pesan_aman])
 
     return True
+
+
+# 6. FUNGSI RINGKASAN STATISTIK UNTUK HALAMAN DASHBOARD (dashboard.html)
+def ringkasan_dashboard():
+    """
+    Menghitung ikhtisar singkat FileMate untuk halaman Dashboard:
+      - Jumlah skenario & file per kategori ancaman dari data/skenario.json
+      - Jumlah file jebakan (malware) vs file aman
+      - Jumlah sesi simulasi, rata-rata skor & sebaran kategori risiko dari data/hasil.csv
+    Edge-case: Jika file data belum ada / rusak, nilai default 0 dikembalikan.
+    """
+    kategori = {}
+    total_file = total_malware = total_skenario = 0
+    try:
+        with open(SKENARIO_PATH, "r", encoding="utf-8") as f:
+            bank = json.load(f)
+        for nama_kat, daftar in bank.items():
+            jml_file = sum(len(s.get("files", [])) for s in daftar)
+            jml_malware = sum(1 for s in daftar for fl in s.get("files", []) if fl.get("isMalware"))
+            kategori[nama_kat] = {"skenario": len(daftar), "file": jml_file, "malware": jml_malware}
+            total_skenario += len(daftar)
+            total_file += jml_file
+            total_malware += jml_malware
+    except (OSError, ValueError):
+        pass
+
+    skor_list = []
+    sebaran = {"RENDAH": 0, "SEDANG": 0, "TINGGI": 0}
+    if os.path.exists(HASIL_CSV_PATH):
+        with open(HASIL_CSV_PATH, "r", encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                try:
+                    skor_list.append(int(r["skor"]))
+                except (KeyError, ValueError, TypeError):
+                    continue
+                if r.get("kategori_risiko") in sebaran:
+                    sebaran[r["kategori_risiko"]] += 1
+
+    return {
+        "total_skenario": total_skenario,
+        "total_file": total_file,
+        "total_malware": total_malware,
+        "total_aman": total_file - total_malware,
+        "kategori": kategori,
+        "total_sesi": len(skor_list),
+        "rata_rata_skor": round(sum(skor_list) / len(skor_list)) if skor_list else 0,
+        "sebaran_risiko": sebaran,
+    }

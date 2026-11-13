@@ -111,6 +111,18 @@ body {
     display: block;
 }
 
+/* Logo gambar (image/filemate_dark.png & image/filemate-light.png), berganti sesuai tema */
+.logo-img {
+    height: 48px;
+    width: auto;
+    display: block;
+}
+
+:root[data-theme="dark"] .logo-img-light,
+:root[data-theme="light"] .logo-img-dark {
+    display: none;
+}
+
 .logo-ShieldPath {
     stroke: var(--logo-shield-stroke);
     fill: none !important;
@@ -705,6 +717,251 @@ body {
 .toast-notify.show {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* =========================================================
+   DASHBOARD IKHTISAR (dashboard.html)
+   ========================================================= */
+.dash-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+    gap: 36px;
+    align-items: center;
+    padding: 28px 0 8px;
+}
+
+.dash-eyebrow {
+    display: inline-block;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 5px 12px;
+    border-radius: 999px;
+}
+
+.dash-title {
+    font-size: 2.6rem;
+    font-weight: 800;
+    line-height: 1.12;
+    letter-spacing: -1px;
+    margin-top: 14px;
+}
+
+.dash-title .accent {
+    color: var(--accent);
+}
+
+.dash-sub {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-top: 14px;
+    max-width: 60ch;
+}
+
+.dash-cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+.dash-cta .btn {
+    padding: 11px 18px;
+    font-size: 0.9rem;
+}
+
+.hero-demo {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: var(--shadow-md);
+    transition: border-color 0.3s ease;
+}
+
+.hero-demo.revealed {
+    border-color: var(--danger);
+}
+
+.hero-demo-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.8rem;
+    padding: 8px 0;
+    border-top: 1px solid var(--border-color);
+}
+
+.hero-demo-row span:first-child {
+    color: var(--text-muted);
+}
+
+.dash-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-top: 36px;
+}
+
+.stat-tile {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 14px 16px;
+}
+
+.stat-tile .stat-value {
+    font-size: 1.7rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+}
+
+.stat-tile .stat-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.dash-section {
+    margin-top: 56px;
+}
+
+.dash-section-label {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+.dash-section-title {
+    font-size: 1.7rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-top: 6px;
+}
+
+.dash-prose {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    max-width: 72ch;
+    margin-top: 12px;
+}
+
+.dash-prose code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.86em;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-color);
+    padding: 1px 6px;
+    border-radius: 5px;
+    color: var(--text-primary);
+}
+
+.dash-cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 22px;
+}
+
+.dash-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.dash-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.dash-card .dash-card-icon {
+    font-size: 1.6rem;
+    line-height: 1;
+}
+
+.dash-card h3 {
+    font-size: 1.02rem;
+    margin-top: 10px;
+}
+
+.dash-card p {
+    font-size: 0.87rem;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    line-height: 1.6;
+}
+
+.dash-card code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    color: var(--danger);
+}
+
+.dash-card.danger-tone {
+    border-left: 3px solid var(--danger);
+}
+
+.dash-card .dash-card-link {
+    display: inline-block;
+    margin-top: 12px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.dash-card .dash-card-link:hover {
+    text-decoration: underline;
+}
+
+.dash-firewall {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--accent);
+    border-radius: 12px;
+    padding: 26px;
+}
+
+@media (max-width: 900px) {
+    .dash-hero {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .dash-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .dash-title {
+        font-size: 1.8rem !important;
+    }
+
+    .dash-section-title {
+        font-size: 1.3rem !important;
+    }
+
+    .dash-cta .btn {
+        flex: 1 1 100%;
+    }
+
+    .dash-section {
+        margin-top: 40px;
+    }
+
+    .dash-firewall {
+        padding: 18px;
+    }
 }
 
 /* =========================================================
