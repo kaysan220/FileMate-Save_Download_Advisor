@@ -13,6 +13,7 @@ from core.algorithms import (
     ringkasan_dashboard
 )
 from core.linux_utils import jalankan_sha256sum_linux, jalankan_inspeksi_linux
+from core import admin_auth
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__)
@@ -128,6 +129,62 @@ def api_submit_feedback():
     pesan = body.get("message", "")
     berhasil = tulis_feedback(inisial, skor, pesan)
     return jsonify({"status": "ok", "saved": berhasil})
+
+
+# =====================================================================
+# ENDPOINT PASSWORD MAINTAINER (ADMIN) — logika di core/admin_auth.py
+# Frontend hanya mengirim SHA-256(password), tidak pernah password asli.
+# Password salah ke-5/15/25 -> tunda 30 dtk / 5 mnt / 1 jam; ke-35 -> wajib
+# password cadangan. Selama ditunda, semua /api/admin/* menjawab 429.
+# =====================================================================
+def _body():
+    body = request.get_json(silent=True)
+    return body if isinstance(body, dict) else {}
+
+
+def _jawab(hasil):
+    body, kode = hasil
+    resp = jsonify(body)
+    resp.status_code = kode
+    if body.get("retry_after"):
+        resp.headers["Retry-After"] = str(body["retry_after"])
+    return resp
+
+
+@app.before_request
+def tutup_admin_saat_ditunda():
+    if request.path.startswith("/api/admin/"):
+        hasil = admin_auth.cek_akses_api()
+        if hasil is not None:
+            return _jawab(hasil)
+    return None
+
+
+@app.route("/api/admin/status", methods=["GET"])
+def api_admin_status():
+    return _jawab(admin_auth.rute_status())
+
+
+@app.route("/api/admin/setup", methods=["POST"])
+def api_admin_setup():
+    return _jawab(admin_auth.rute_setup(_body().get("password_hash")))
+
+
+@app.route("/api/admin/login", methods=["POST"])
+def api_admin_login():
+    return _jawab(admin_auth.rute_login(_body().get("password_hash")))
+
+
+@app.route("/api/admin/recovery", methods=["POST"])
+def api_admin_recovery():
+    return _jawab(admin_auth.rute_recovery(request.remote_addr or "?", _body().get("recovery_hash")))
+
+
+@app.route("/api/admin/reset", methods=["POST"])
+def api_admin_reset():
+    body = _body()
+    return _jawab(admin_auth.rute_reset(
+        request.remote_addr or "?", body.get("recovery_hash"), body.get("new_password_hash")))
 
 
 if __name__ == "__main__":

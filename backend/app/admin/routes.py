@@ -1,44 +1,62 @@
 # =====================================================================
 # RUTE MAINTAINER (ADMIN)
-#   POST /api/admin/login            {pin}
+#   GET  /api/admin/status           -> {has_password, retry_after, require_recovery}
+#   POST /api/admin/setup            {password_hash}           (hanya jika belum ada password)
+#   POST /api/admin/login            {password_hash}
+#   POST /api/admin/recovery         {recovery_hash}           (cek password cadangan)
+#   POST /api/admin/reset            {recovery_hash, new_password_hash}
 #   POST /api/admin/logout
 #   GET  /api/admin/feedback?limit=
 #   GET  /api/admin/export/<scores|feedback>   -> unduh CSV
-# KEAMANAN:
-#   - PIN dibaca dari .env (ADMIN_PIN); jika kosong, menu admin nonaktif
+# KEAMANAN (logika di core/admin_auth.py, dipakai bersama app.py):
+#   - Frontend mengirim SHA-256(password); server menyimpan PBKDF2 dari hash itu
 #   - Perbandingan constant-time (hmac.compare_digest)
-#   - Pembatasan percobaan login: 5x gagal / 5 menit per IP
+#   - Password salah ke-5/15/25 -> tunda 30 dtk / 5 mnt / 1 jam;
+#     ke-35 -> login ditutup, wajib password cadangan.
+#     Selama ditunda, SEMUA endpoint /api/admin/* menjawab 429.
 # =====================================================================
-import hmac
-import threading
-import time
+import sys
 from functools import wraps
 
-from flask import Blueprint, Response, current_app, request, session
+from flask import Blueprint, Response, jsonify, request, session
 
 from ..common.responses import ambil_json, gagal, sukses
 from ..common.sanitize import ke_int
+from ..config import ROOT_DIR
 from ..feedback import repository as feedback_repo
 from . import export
 
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+from core import admin_auth  # noqa: E402  (dipakai bersama app.py di root)
+
 bp = Blueprint("admin", __name__, url_prefix="/api/admin")
 
-MAKS_GAGAL = 5
-JENDELA_DETIK = 5 * 60
-_gagal_login = {}  # ip -> [timestamp, ...]
-_kunci = threading.Lock()
+
+def _ip():
+    return request.remote_addr or "?"
 
 
-def _terblokir(ip, sekarang):
-    with _kunci:
-        riwayat = [t for t in _gagal_login.get(ip, []) if sekarang - t < JENDELA_DETIK]
-        _gagal_login[ip] = riwayat
-        return len(riwayat) >= MAKS_GAGAL
+def _jawab(hasil, login_berhasil=False):
+    body, kode = hasil
+    if login_berhasil and kode == 200:
+        session.clear()
+        session["is_admin"] = True
+    resp = jsonify(body)
+    resp.status_code = kode
+    if body.get("retry_after"):
+        resp.headers["Retry-After"] = str(body["retry_after"])
+    return resp
 
 
-def _catat_gagal(ip, sekarang):
-    with _kunci:
-        _gagal_login.setdefault(ip, []).append(sekarang)
+@bp.before_request
+def tutup_saat_ditunda():
+    """Selama penundaan aktif, semua endpoint admin ditolak."""
+    hasil = admin_auth.cek_akses_api()
+    if hasil is not None:
+        session.pop("is_admin", None)
+        return _jawab(hasil)
+    return None
 
 
 def wajib_admin(fn):
@@ -50,25 +68,33 @@ def wajib_admin(fn):
     return pembungkus
 
 
+@bp.get("/status")
+def status():
+    return _jawab(admin_auth.rute_status())
+
+
+@bp.post("/setup")
+def setup():
+    return _jawab(admin_auth.rute_setup(ambil_json().get("password_hash")), login_berhasil=True)
+
+
 @bp.post("/login")
 def login():
-    pin_benar = current_app.config.get("ADMIN_PIN", "")
-    if not pin_benar:
-        return gagal("Menu admin belum diaktifkan (ADMIN_PIN kosong).", 503)
+    return _jawab(admin_auth.rute_login(ambil_json().get("password_hash")), login_berhasil=True)
 
-    ip = request.remote_addr or "?"
-    sekarang = time.time()
-    if _terblokir(ip, sekarang):
-        return gagal("Terlalu banyak percobaan. Coba lagi dalam 5 menit.", 429)
 
-    pin = str(ambil_json().get("pin", ""))
-    if not hmac.compare_digest(pin.encode(), pin_benar.encode()):
-        _catat_gagal(ip, sekarang)
-        return gagal("PIN salah.", 401)
+@bp.post("/recovery")
+def cek_cadangan():
+    return _jawab(admin_auth.rute_recovery(_ip(), ambil_json().get("recovery_hash")))
 
-    session.clear()
-    session["is_admin"] = True
-    return sukses({"logged_in": True})
+
+@bp.post("/reset")
+def reset_password():
+    body = ambil_json()
+    return _jawab(
+        admin_auth.rute_reset(_ip(), body.get("recovery_hash"), body.get("new_password_hash")),
+        login_berhasil=True,
+    )
 
 
 @bp.post("/logout")

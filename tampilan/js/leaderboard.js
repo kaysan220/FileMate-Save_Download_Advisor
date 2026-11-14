@@ -4,12 +4,8 @@
    ========================================================= */
 
 // === [AWAL ZONA MIGRASI BACKEND 2 - TUGAS KAYSAN & YAZID] ===
-const DEFAULT_LEADERBOARD = [
-    { name: "R****T", score: 95, time: "01:12", risk: "RENDAH" },
-    { name: "F****N", score: 90, time: "01:28", risk: "RENDAH" },
-    { name: "K****N", score: 85, time: "01:45", risk: "RENDAH" },
-    { name: "Y****D", score: 75, time: "02:05", risk: "SEDANG" }
-];
+// Papan peringkat awalnya kosong; baru terisi setelah ada peserta yang menyimpan skor.
+const DEFAULT_LEADERBOARD = [];
 
 function getLeaderboard() {
     try {
@@ -32,6 +28,14 @@ function renderHomeLeaderboard() {
     const lb = getLeaderboard();
 
     container.innerHTML = '';
+    if (!lb.length) {
+        container.innerHTML = `
+            <div style="padding: 14px; text-align: center; background: var(--bg-subtle); border-radius: 8px; border: 1px dashed var(--border-color); font-size: 0.85rem; color: var(--text-muted);">
+                Belum ada skor. Jadilah yang pertama!
+            </div>
+        `;
+        return;
+    }
     lb.slice(0, 6).forEach((item, idx) => {
         const safeScore = Number(item.score) || 0;
         const scoreColor = safeScore > 80 ? 'var(--safe)' : (safeScore > 50 ? 'var(--warning)' : 'var(--danger)');

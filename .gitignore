@@ -1,0 +1,6 @@
+# Hash password maintainer — dibuat otomatis lewat menu admin, jangan di-commit
+data/admin_password.json
+data/admin_password.json.tmp
+# Status penundaan login admin (jumlah password salah)
+data/admin_lock.json
+data/admin_lock.json.tmp

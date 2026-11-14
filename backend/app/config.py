@@ -39,7 +39,8 @@ DATA_DIR = os.path.join(ROOT_DIR, "data")
 class Config:
     # --- Rahasia (WAJIB diisi di .env saat deploy) ---
     SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
-    ADMIN_PIN = os.environ.get("ADMIN_PIN", "")
+    # Password admin tidak lagi di .env: dibuat lewat menu maintainer (Ctrl+Shift+L)
+    # dan disimpan sebagai hash di data/admin_password.json (lihat core/admin_auth.py).
 
     # --- Keamanan cookie sesi admin ---
     SESSION_COOKIE_HTTPONLY = True
