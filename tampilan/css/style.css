@@ -197,21 +197,19 @@ body {
     flex-wrap: wrap;
 }
 
-/* Penanda menu halaman yang sedang dibuka */
-.nav-actions .btn.is-active {
-    background: var(--accent-soft);
-    color: var(--accent);
-    border-color: var(--accent);
-}
-
-.nav-actions .btn-primary.is-active {
+/* Penanda menu halaman yang sedang dibuka — hanya menu aktif yang biru penuh */
+.nav-actions .btn.is-active,
+.nav-actions .btn.is-active:hover {
     background: var(--accent);
     color: #fff;
+    border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-:root[data-theme="dark"] .nav-actions .btn-primary.is-active {
+:root[data-theme="dark"] .nav-actions .btn.is-active,
+:root[data-theme="dark"] .nav-actions .btn.is-active:hover {
     color: #09101D;
+    font-weight: 700;
 }
 
 /* =========================================================
