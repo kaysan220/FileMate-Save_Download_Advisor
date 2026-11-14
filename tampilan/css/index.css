@@ -1,0 +1,31 @@
+/* =========================================================
+   PEMERIKSA FILE (page/index.html)
+   Dimuat setelah style.css
+   ========================================================= */
+.grid-2 {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.65fr);
+    gap: 24px;
+}
+
+.dropzone {
+    border: 2px dashed var(--border-color);
+    background: var(--bg-subtle);
+    border-radius: 12px;
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 16px;
+}
+
+.dropzone:hover, .dropzone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+@media (max-width: 900px) {
+    .grid-2 {
+        grid-template-columns: 1fr;
+    }
+}

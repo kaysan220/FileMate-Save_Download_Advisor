@@ -14,25 +14,25 @@ FileMate/
 ├── .env.example                  ← SECRET_KEY, ADMIN_PIN
 ├── .gitignore                    ← .env, *.db, __pycache__, data/exports/*
 │
-├── docs/
-│   ├── ARCHITECTURE.md           ← gambaran sistem, alur, struktur folder
-│   ├── API_CONTRACT.md           ← semua endpoint + contoh JSON
-│   ├── DATA_SCHEMA.md            ← skenario.json + tabel SQL
-│   ├── SECURITY.md               ← kontrol keamanan (bahan sidang DKS)
-│   └── TESTING.md                ← cara tes + checklist user testing
+├── docs/                         --- OK 14/11/2026
+│   ├── ARCHITECTURE.md           ← gambaran sistem, alur, struktur folder        --- OK 14/11/2026
+│   ├── API_CONTRACT.md           ← semua endpoint + contoh JSON                  --- OK 14/11/2026
+│   ├── DATA_SCHEMA.md            ← skenario.json + tabel SQL                     --- OK 14/11/2026
+│   ├── SECURITY.md               ← kontrol keamanan (bahan sidang DKS)           --- OK 14/11/2026
+│   └── TESTING.md                ← cara tes + checklist user testing             --- OK 14/11/2026
 │
 ├── frontend/
-│   ├── pages/
+│   ├── pages/                          --- OK 14/10/2026
 │   │   ├── index.html
 │   │   ├── play.html
 │   │   ├── result.html
 │   │   └── guide.html
 │   └── assets/
-│       ├── css/
+│       ├── css/                        --- OK 14/10/2026
 │       │   ├── base.css          ← variabel tema, reset, tipografi
 │       │   ├── components.css    ← tombol, panel, modal, toast, form
 │       │   └── pages.css         ← gaya khusus tiap halaman
-│       ├── js/
+│       ├── js/                         --- OK 14/10/2026
 │       │   ├── api.js            ← fetch() bersama + penanganan error
 │       │   ├── common.js         ← tema, modal, toast, escapeHTML, profil tim
 │       │   ├── inspector.js      ← scanner beranda (tetap lokal di browser)
@@ -40,7 +40,7 @@ FileMate/
 │       │   ├── game.js           ← lab simulasi
 │       │   ├── result.js         ← halaman hasil + feedback
 │       │   └── admin.js          ← menu maintainer
-│       └── images/
+│       └── images/                     --- OK 13/10/2026
 │
 ├── backend/
 │   ├── wsgi.py                   ← titik masuk gunicorn

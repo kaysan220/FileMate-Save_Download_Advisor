@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FileMate — Ikhtisar Safe Download Advisor</title>
     <link rel="stylesheet" href="../tampilan/css/style.css">
+    <link rel="stylesheet" href="../tampilan/css/dashboard.css">
 </head>
 <body>
 
@@ -56,7 +57,7 @@
             </div>
         </section>
 
-        <!-- Statistik singkat (diisi main.js dari /api/dashboard-stats) -->
+        <!-- Statistik singkat (diisi dashboard.js dari /api/dashboard-stats) -->
         <div class="dash-stats" id="dashStats">
             <div class="stat-tile"><div class="stat-value" id="statSkenario">–</div><div class="stat-label">Skenario ancaman</div></div>
             <div class="stat-tile"><div class="stat-value" id="statFile">–</div><div class="stat-label">File latihan</div></div>
@@ -150,6 +151,9 @@
     </footer>
 
     <script src="../tampilan/js/scenario_data.js"></script>
-    <script src="../tampilan/js/main.js"></script>
+    <script src="../tampilan/js/common.js"></script>
+    <script src="../tampilan/js/api.js"></script>
+    <script src="../tampilan/js/dashboard.js"></script>
+    <script src="../tampilan/js/admin.js"></script>
 </body>
 </html>

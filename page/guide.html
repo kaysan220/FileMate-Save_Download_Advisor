@@ -5,59 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panduan Verifikasi File — FileMate</title>
     <link rel="stylesheet" href="../tampilan/css/style.css">
-    <style>
-        .output-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin: 8px 0 16px 0;
-        }
-        @media (max-width: 720px) {
-            .output-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        .terminal-out-box {
-            background: #040811;
-            border: 1px solid #1E2F4D;
-            border-left: 3px solid var(--accent);
-            border-radius: 6px;
-            padding: 10px 14px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.79rem;
-            color: #CBD5E1;
-            overflow-x: auto;
-            line-height: 1.5;
-        }
-        .terminal-out-box.safe-out {
-            border-left-color: var(--safe);
-        }
-        .terminal-out-box.danger-out {
-            border-left-color: var(--danger);
-        }
-        .out-label {
-            display: block;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.71rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
-            color: var(--text-muted);
-        }
-        .safe-out .out-label { color: var(--safe); }
-        .danger-out .out-label { color: var(--danger); }
-        .sub-section-title {
-            font-size: 0.88rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-top: 16px;
-            margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-    </style>
+    <link rel="stylesheet" href="../tampilan/css/guide.css">
 </head>
 <body>
 
@@ -435,6 +383,8 @@
     </footer>
 
     <script src="../tampilan/js/scenario_data.js"></script>
-    <script src="../tampilan/js/main.js"></script>
+    <script src="../tampilan/js/common.js"></script>
+    <script src="../tampilan/js/api.js"></script>
+    <script src="../tampilan/js/admin.js"></script>
 </body>
 </html>

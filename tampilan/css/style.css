@@ -1,3 +1,11 @@
+/* =========================================================
+   STYLE GLOBAL (dipakai semua halaman)
+   Gaya khusus halaman ada di file terpisah:
+   - dashboard.css  -> page/dashboard.html
+   - index.css      -> page/index.html
+   - play.css       -> page/play.html
+   - guide.css      -> page/guide.html
+   ========================================================= */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root[data-theme="light"] {
@@ -82,6 +90,9 @@ body {
     font-family: 'JetBrains Mono', monospace;
 }
 
+/* =========================================================
+   NAVBAR & LOGO
+   ========================================================= */
 .navbar {
     background: var(--bg-surface);
     border-bottom: 1px solid var(--border-color);
@@ -203,6 +214,9 @@ body {
     color: #09101D;
 }
 
+/* =========================================================
+   LAYOUT DASAR
+   ========================================================= */
 .container {
     width: 92%;
     max-width: 1100px;
@@ -219,6 +233,9 @@ body {
     max-width: 100%;
 }
 
+/* =========================================================
+   TOMBOL
+   ========================================================= */
 .btn {
     font-family: 'Inter', sans-serif;
     font-size: 0.85rem;
@@ -288,22 +305,10 @@ body {
     font-size: 0.78rem;
 }
 
-.dropzone {
-    border: 2px dashed var(--border-color);
-    background: var(--bg-subtle);
-    border-radius: 12px;
-    padding: 32px 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin-top: 16px;
-}
-
-.dropzone:hover, .dropzone.dragover {
-    border-color: var(--accent);
-    background: var(--accent-soft);
-}
-
+/* =========================================================
+   KOMPONEN BERSAMA: X-RAY & BADGE EKSTENSI
+   (dipakai index.html, play.html, dashboard.html)
+   ========================================================= */
 .xray-box {
     background: var(--bg-subtle);
     border: 1px solid var(--border-color);
@@ -357,62 +362,9 @@ body {
     border: 1px solid var(--safe);
 }
 
-.explorer-frame {
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    overflow: hidden;
-    margin-top: 18px;
-}
-
-.explorer-header {
-    background: var(--bg-subtle);
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    font-size: 0.82rem;
-    color: var(--text-secondary);
-    word-break: break-all;
-}
-
-.file-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    padding: 14px 16px;
-    background: var(--bg-surface);
-    border-bottom: 1px solid var(--border-color);
-}
-
-.file-item > div:first-child {
-    min-width: 0;
-    flex: 1 1 240px;
-    word-break: break-word;
-}
-
-.file-item:last-child {
-    border-bottom: none;
-}
-
-.file-item:hover {
-    background: var(--bg-subtle);
-}
-
-.file-status-tag {
-    font-size: 0.78rem;
-    font-weight: 600;
-    padding: 5px 10px;
-    border-radius: 6px;
-    display: inline-block;
-    text-align: center;
-}
-
-/* Modal Clean & Smooth */
+/* =========================================================
+   MODAL (dipakai semua halaman)
+   ========================================================= */
 .modal-backdrop {
     position: fixed;
     inset: 0;
@@ -453,7 +405,19 @@ body {
     100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Layout 3 Tombol di Footer Modal Maintainer */
+.modal-actions-responsive {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* =========================================================
+   MAINTAINER / ADMIN (admin.js, dimuat di semua halaman)
+   ========================================================= */
 .maintainer-footer-actions {
     display: flex;
     justify-content: space-between;
@@ -471,136 +435,38 @@ body {
     gap: 8px;
 }
 
-.modal-actions-responsive {
-    display: flex;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 18px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border-color);
+.pin-input-clean {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-subtle);
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.15s ease;
 }
 
+.pin-input-clean:focus {
+    border-color: var(--accent);
+}
+
+/* Animasi getar (dipakai .shake-error di admin.js & .malware-triggered di play.css) */
 @keyframes shakeScreen {
     0%, 100% { transform: translateX(0); }
     20%, 60% { transform: translateX(-6px); }
     40%, 80% { transform: translateX(6px); }
 }
 
-.malware-triggered, .shake-error {
+.shake-error {
     animation: shakeScreen 0.35s ease;
     border-color: var(--danger) !important;
 }
 
-.hash-char-match {
-    color: var(--safe);
-}
-
-.hash-char-diff {
-    background: var(--danger);
-    color: #fff;
-    padding: 0 2px;
-    border-radius: 3px;
-}
-
-.grid-2 {
-    display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.65fr);
-    gap: 24px;
-}
-
-.scan-progress-wrap {
-    background: var(--bg-subtle);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    height: 10px;
-    overflow: hidden;
-    margin: 12px 0;
-}
-
-.scan-progress-bar {
-    height: 100%;
-    width: 0%;
-    background: var(--accent);
-    transition: width 0.25s ease;
-}
-
-@keyframes popReveal {
-    0% { opacity: 0; transform: translateY(6px) scale(0.97); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.reveal-anim {
-    animation: popReveal 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.feedback-drawer {
-    margin-top: 22px;
-    padding: 20px;
-    border-radius: 10px;
-    background: var(--bg-subtle);
-    border-left: 4px solid var(--accent);
-    display: none;
-}
-
-.feedback-drawer.show {
-    display: block;
-    animation: popReveal 0.3s ease forwards;
-}
-
-.guide-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 20px;
-    overflow-x: auto;
-}
-
-/* Clean IDE Terminal Look */
-.cmd-box {
-    background: #060B14;
-    color: #E2E8F0;
-    padding: 12px 16px;
-    border-radius: 8px;
-    border: 1px solid #1E2F4D;
-    font-size: 0.85rem;
-    margin: 10px 0 6px 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    overflow-x: auto;
-}
-
-.cmd-box > div {
-    min-width: 0;
-    word-break: break-all;
-}
-
-.cmd-prompt {
-    color: #475569;
-    user-select: none;
-    margin-right: 8px;
-}
-
-.cmd-verb {
-    color: #38BDF8;
-    font-weight: 500;
-}
-
-.cmd-arg {
-    color: #F8FAFC;
-    border-bottom: 1px dotted #64748B;
-    padding-bottom: 1px;
-}
-
-.cmd-hint {
-    font-size: 0.76rem;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-}
-
+/* =========================================================
+   PROFIL TIM SATGAS (modal dari common.js)
+   ========================================================= */
 .team-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -633,31 +499,9 @@ body {
     text-transform: uppercase;
 }
 
-.ending-box {
-    margin-top: 12px;
-    padding: 14px;
-    border-radius: 8px;
-    font-size: 0.86rem;
-    line-height: 1.55;
-}
-
-.ending-good {
-    background: var(--safe-soft);
-    border-left: 4px solid var(--safe);
-}
-
-.ending-bad {
-    background: var(--danger-soft);
-    border-left: 4px solid var(--danger);
-}
-
-.explain-pill {
-    display: block;
-    font-size: 0.76rem;
-    color: var(--text-muted);
-    margin-top: 2px;
-}
-
+/* =========================================================
+   FOOTER & TOAST
+   ========================================================= */
 .site-footer {
     text-align: center;
     padding: 22px 5%;
@@ -666,47 +510,6 @@ body {
     border-top: 1px solid var(--border-color);
     font-size: 0.84rem;
     color: var(--text-muted);
-}
-
-.magic-table {
-    width: 100%;
-    min-width: 520px;
-    border-collapse: collapse;
-    margin-top: 12px;
-    font-size: 0.84rem;
-}
-
-.magic-table th, .magic-table td {
-    border: 1px solid var(--border-color);
-    padding: 9px 12px;
-    text-align: left;
-}
-
-.magic-table th {
-    background: var(--bg-subtle);
-    color: var(--accent);
-    font-weight: 700;
-}
-
-.magic-table tr:nth-child(even) {
-    background: rgba(255, 255, 255, 0.02);
-}
-
-.pin-input-clean {
-    width: 100%;
-    padding: 10px 14px;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-    background: var(--bg-subtle);
-    color: var(--text-primary);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.9rem;
-    outline: none;
-    transition: border-color 0.15s ease;
-}
-
-.pin-input-clean:focus {
-    border-color: var(--accent);
 }
 
 .toast-notify {
@@ -737,260 +540,8 @@ body {
 }
 
 /* =========================================================
-   DASHBOARD IKHTISAR (dashboard.html)
+   RESPONSIVE GLOBAL (MOBILE)
    ========================================================= */
-.dash-hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
-    gap: 36px;
-    align-items: center;
-    padding: 28px 0 8px;
-}
-
-.dash-eyebrow {
-    display: inline-block;
-    font-size: 0.74rem;
-    font-weight: 700;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
-    color: var(--accent);
-    background: var(--accent-soft);
-    padding: 5px 12px;
-    border-radius: 999px;
-}
-
-.dash-title {
-    font-size: 2.6rem;
-    font-weight: 800;
-    line-height: 1.12;
-    letter-spacing: -1px;
-    margin-top: 14px;
-}
-
-.dash-title .accent {
-    color: var(--accent);
-}
-
-.dash-sub {
-    font-size: 1rem;
-    color: var(--text-secondary);
-    margin-top: 14px;
-    max-width: 60ch;
-}
-
-.dash-cta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 24px;
-}
-
-.dash-cta .btn {
-    padding: 11px 18px;
-    font-size: 0.9rem;
-}
-
-.hero-demo {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-radius: 14px;
-    padding: 18px;
-    box-shadow: var(--shadow-md);
-    transition: border-color 0.3s ease;
-}
-
-.hero-demo.revealed {
-    border-color: var(--danger);
-}
-
-.hero-demo-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    font-size: 0.8rem;
-    padding: 8px 0;
-    border-top: 1px solid var(--border-color);
-}
-
-.hero-demo-row span:first-child {
-    color: var(--text-muted);
-}
-
-.dash-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
-    margin-top: 36px;
-}
-
-.stat-tile {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 14px 16px;
-}
-
-.stat-tile .stat-value {
-    font-size: 1.7rem;
-    font-weight: 800;
-    font-variant-numeric: tabular-nums;
-    line-height: 1.1;
-}
-
-.stat-tile .stat-label {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    margin-top: 4px;
-}
-
-.dash-section {
-    margin-top: 56px;
-}
-
-.dash-section-label {
-    font-size: 0.74rem;
-    font-weight: 700;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
-    color: var(--accent);
-}
-
-.dash-section-title {
-    font-size: 1.7rem;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-    margin-top: 6px;
-}
-
-.dash-prose {
-    font-size: 0.95rem;
-    color: var(--text-secondary);
-    line-height: 1.7;
-    max-width: 72ch;
-    margin-top: 12px;
-}
-
-.dash-prose code {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.86em;
-    background: var(--bg-subtle);
-    border: 1px solid var(--border-color);
-    padding: 1px 6px;
-    border-radius: 5px;
-    color: var(--text-primary);
-}
-
-.dash-cards {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
-    margin-top: 22px;
-}
-
-.dash-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 20px;
-    transition: border-color 0.2s ease, transform 0.2s ease;
-}
-
-.dash-card:hover {
-    border-color: var(--accent);
-    transform: translateY(-2px);
-}
-
-.dash-card .dash-card-icon {
-    font-size: 1.6rem;
-    line-height: 1;
-}
-
-.dash-card h3 {
-    font-size: 1.02rem;
-    margin-top: 10px;
-}
-
-.dash-card p {
-    font-size: 0.87rem;
-    color: var(--text-secondary);
-    margin-top: 6px;
-    line-height: 1.6;
-}
-
-.dash-card code {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.85em;
-    color: var(--danger);
-}
-
-.dash-card.danger-tone {
-    border-left: 3px solid var(--danger);
-}
-
-.dash-card .dash-card-link {
-    display: inline-block;
-    margin-top: 12px;
-    font-size: 0.84rem;
-    font-weight: 600;
-    color: var(--accent);
-    text-decoration: none;
-}
-
-.dash-card .dash-card-link:hover {
-    text-decoration: underline;
-}
-
-.dash-firewall {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-left: 4px solid var(--accent);
-    border-radius: 12px;
-    padding: 26px;
-}
-
-@media (max-width: 900px) {
-    .dash-hero {
-        grid-template-columns: 1fr;
-        gap: 24px;
-    }
-
-    .dash-cards {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 640px) {
-    .dash-title {
-        font-size: 1.8rem !important;
-    }
-
-    .dash-section-title {
-        font-size: 1.3rem !important;
-    }
-
-    .dash-cta .btn {
-        flex: 1 1 100%;
-    }
-
-    .dash-section {
-        margin-top: 40px;
-    }
-
-    .dash-firewall {
-        padding: 18px;
-    }
-}
-
-/* =========================================================
-   RESPONSIVE BREAKPOINTS (TABLET & MOBILE DEVICES)
-   ========================================================= */
-
-@media (max-width: 900px) {
-    .grid-2 {
-        grid-template-columns: 1fr;
-    }
-}
-
 @media (max-width: 640px) {
     .navbar {
         flex-direction: column;
@@ -1020,7 +571,7 @@ body {
         margin: 18px auto;
     }
 
-    .panel, .guide-card {
+    .panel {
         padding: 16px;
     }
 
@@ -1030,42 +581,6 @@ body {
 
     h2 {
         font-size: 1.15rem !important;
-    }
-
-    /* Baris File di Lab Simulasi Rapi di HP */
-    .file-item {
-        flex-direction: column;
-        align-items: flex-start;
-        padding: 12px;
-        gap: 10px;
-    }
-
-    .file-item > div:first-child {
-        flex: 1 1 auto;
-        width: 100%;
-    }
-
-    .file-item > div:last-child {
-        width: 100%;
-        display: grid !important;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px !important;
-    }
-
-    .file-item > div:last-child .file-status-tag {
-        grid-column: span 2;
-        width: 100%;
-    }
-
-    /* Kotak Command di Guide */
-    .cmd-box {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
-    }
-
-    .cmd-box .btn {
-        width: 100%;
     }
 
     .team-grid {
