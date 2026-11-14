@@ -15,6 +15,7 @@ import csv
 import random
 import re
 from datetime import datetime
+from core.linux_utils import jalankan_sha256sum_linux
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKENARIO_PATH = os.path.join(BASE_DIR, "data", "skenario.json")
@@ -43,6 +44,20 @@ def baca_skenario():
     for idx, sken in enumerate(terpilih, start=1):
         kopi_sken = dict(sken)
         kopi_files = list(kopi_sken["files"])
+
+        for f_item in kopi_files:
+            if not f_item.get("hash"):
+                hasil_cli = jalankan_sha256sum_linux(f_item["realName"])
+                if "sha256" in hasil_cli:
+                    real_h = hasil_cli["sha256"]
+                    f_item["hash"] = real_h
+                    if f_item.get("expectedHash") is not None:
+                        if f_item.get("isMalware", False):
+                            tengah = "".join("0" if c != "0" else "f" for c in real_h[24:32])
+                            f_item["expectedHash"] = real_h[:24] + tengah + real_h[32:]
+                        else:
+                            f_item["expectedHash"] = real_h
+
         random.shuffle(kopi_files)
         kopi_sken["files"] = kopi_files
         sesi_skenario[str(idx)] = kopi_sken
