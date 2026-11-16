@@ -7,16 +7,31 @@
 #   3. Buka browser di http://127.0.0.1:5000
 # =====================================================================
 import os
-from flask import Flask, jsonify, request, send_from_directory, redirect
+import secrets
+from functools import wraps
+from flask import Flask, Response, jsonify, request, send_from_directory, redirect, session
 from core.algorithms import (
-    baca_skenario, nilai, tulis_log, baca_leaderboard, tulis_feedback,
+    SKENARIO_PATH, tulis_log, baca_leaderboard, tulis_feedback,
     ringkasan_dashboard
 )
 from core.linux_utils import jalankan_sha256sum_linux, jalankan_inspeksi_linux
-from core import admin_auth
+from core import admin_auth, admin_data
+# Logika sesi simulasi dipakai bersama dengan backend/ (tidak disalin ulang)
+from backend.app.simulation import service as sesi_service
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__)
+app.config.update(
+    SKENARIO_PATH=SKENARIO_PATH,
+    SESSION_TTL_DETIK=60 * 60,   # sesi simulasi kedaluwarsa setelah 1 jam
+    MAKS_SESI_AKTIF=500,         # batas sesi di memori (anti-DoS sederhana)
+    # Cookie sesi login admin (menu Satgas). Tanpa SECRET_KEY di .env, kunci acak
+    # dibuat tiap server start -> admin perlu login ulang setelah server restart.
+    SECRET_KEY=os.environ.get("SECRET_KEY") or secrets.token_hex(32),
+    SESSION_COOKIE_HTTPONLY=True,     # cookie tidak bisa dibaca JavaScript
+    SESSION_COOKIE_SAMESITE="Strict", # cegah request dari situs lain (CSRF)
+    SESSION_COOKIE_SECURE=os.environ.get("COOKIE_SECURE", "0") == "1",
+)
 
 
 # Header Keamanan HTTP (AppSec Hardening)
@@ -54,10 +69,72 @@ def serve_images(filename):
 # ENDPOINT API BACKEND (UNTUK KONEKSI FETCH DARI FRONTEND)
 # =====================================================================
 
-@app.route("/api/start-session", methods=["GET"])
-def api_start_session():
-    """Mengambil 3 skenario acak dari data/skenario.json (Tugas Rohit)."""
-    return jsonify(baca_skenario())
+# ---------------------------------------------------------------------
+# SESI SIMULASI (dipakai tampilan/js/game.js) — kunci jawaban & skor di server.
+# Rute lama GET /api/start-session dihapus karena mengirim kunci jawaban.
+# ---------------------------------------------------------------------
+def _ok(data, status=200):
+    return jsonify({"status": "ok", "data": data}), status
+
+
+@app.errorhandler(sesi_service.SesiError)
+def tangani_sesi_error(e):
+    return jsonify({"status": "error", "message": str(e)}), e.status
+
+
+def _json_body():
+    body = request.get_json(silent=True)
+    return body if isinstance(body, dict) else {}
+
+
+@app.route("/api/session/start", methods=["POST"])
+def api_session_start():
+    return _ok(sesi_service.mulai_sesi(), 201)
+
+
+@app.route("/api/session/<sid>/decide", methods=["POST"])
+def api_session_decide(sid):
+    body = _json_body()
+    return _ok(sesi_service.putuskan(
+        sid, body.get("file_id"), body.get("action"), diperiksa=body.get("inspected") is True))
+
+
+@app.route("/api/session/<sid>/hint", methods=["POST"])
+def api_session_hint(sid):
+    return _ok(sesi_service.minta_hint(sid, _json_body().get("scenario_id")))
+
+
+@app.route("/api/session/<sid>/finish", methods=["POST"])
+def api_session_finish(sid):
+    return _ok(sesi_service.selesaikan(sid))
+
+
+# Dipakai tampilan/js/result.js
+@app.route("/api/session/<sid>/result", methods=["GET"])
+def api_session_result(sid):
+    return _ok(sesi_service.ambil_hasil(sid))
+
+
+@app.route("/api/session/<sid>/save", methods=["POST"])
+def api_session_save(sid):
+    """Skor yang disimpan ke hasil.csv berasal dari hasil /finish di server."""
+    username = _json_body().get("username", "")
+    hasil = sesi_service.simpan_hasil(sid, username)
+    tulis_log(username, hasil["score"], hasil["time"], hasil["risk_category"])
+    return _ok(hasil, 201)
+
+
+@app.route("/api/session/<sid>/feedback", methods=["POST"])
+def api_session_feedback(sid):
+    """Feedback terikat sesi: inisial & skor dari server, browser hanya mengirim pesan."""
+    pesan = str(_json_body().get("message") or "").strip()
+    if not pesan:
+        return jsonify({"status": "error", "message": "Pesan masukan tidak boleh kosong."}), 400
+    data = sesi_service.ambil_data_feedback(sid)
+    if not tulis_feedback(data["user"], data["score"], pesan):
+        sesi_service.batalkan_feedback(sid)
+        return jsonify({"status": "error", "message": "Pesan masukan tidak valid."}), 400
+    return _ok({"saved": True}, 201)
 
 
 @app.route("/api/leaderboard", methods=["GET"])
@@ -94,41 +171,9 @@ def api_hash_file():
         return jsonify({"status": "error", "message": str(e)}), 400
 
 
-@app.route("/api/submit-score", methods=["POST"])
-def api_submit_score():
-    """Menyimpan skor ke data/hasil.csv dengan nama disensor (Tugas Kaysan)."""
-    body = request.get_json(silent=True) or {}
-    nama_raw = body.get("username", "Anonim")
-    waktu_str = body.get("time", "01:00")
-
-    if "malware_opened" in body:
-        skor_akhir, kategori = nilai(
-            body.get("malware_opened", 0),
-            body.get("false_alarm", 0),
-            body.get("hints_used", 0)
-        )
-    else:
-        skor_akhir = int(body.get("score", 100))
-        kategori = "TINGGI" if skor_akhir <= 50 else ("SEDANG" if skor_akhir <= 80 else "RENDAH")
-
-    nama_tersensor = tulis_log(nama_raw, skor_akhir, waktu_str, kategori)
-    return jsonify({
-        "status": "ok",
-        "masked_name": nama_tersensor,
-        "score": skor_akhir,
-        "risk_category": kategori
-    })
-
-
-@app.route("/api/submit-feedback", methods=["POST"])
-def api_submit_feedback():
-    """Menyimpan saran responden ke data/feedback_user.csv (Tugas Kaysan & Yazid)."""
-    body = request.get_json(silent=True) or {}
-    inisial = body.get("user", "A****M")
-    skor = body.get("score", 100)
-    pesan = body.get("message", "")
-    berhasil = tulis_feedback(inisial, skor, pesan)
-    return jsonify({"status": "ok", "saved": berhasil})
+# Endpoint lama POST /api/submit-score & /api/submit-feedback DIHAPUS (16/11/2026):
+# keduanya menerima skor dari browser sehingga leaderboard/feedback bisa dipalsukan.
+# Penggantinya: POST /api/session/<sid>/save & /api/session/<sid>/feedback (skor dari server).
 
 
 # =====================================================================
@@ -142,8 +187,11 @@ def _body():
     return body if isinstance(body, dict) else {}
 
 
-def _jawab(hasil):
+def _jawab(hasil, login_berhasil=False):
     body, kode = hasil
+    if login_berhasil and kode == 200:
+        session.clear()
+        session["is_admin"] = True   # cookie sesi: dibutuhkan endpoint data admin
     resp = jsonify(body)
     resp.status_code = kode
     if body.get("retry_after"):
@@ -151,11 +199,21 @@ def _jawab(hasil):
     return resp
 
 
+def _wajib_admin(fn):
+    @wraps(fn)
+    def pembungkus(*args, **kwargs):
+        if not session.get("is_admin"):
+            return jsonify({"status": "error", "message": "Butuh login admin."}), 401
+        return fn(*args, **kwargs)
+    return pembungkus
+
+
 @app.before_request
 def tutup_admin_saat_ditunda():
     if request.path.startswith("/api/admin/"):
         hasil = admin_auth.cek_akses_api()
         if hasil is not None:
+            session.pop("is_admin", None)
             return _jawab(hasil)
     return None
 
@@ -167,12 +225,12 @@ def api_admin_status():
 
 @app.route("/api/admin/setup", methods=["POST"])
 def api_admin_setup():
-    return _jawab(admin_auth.rute_setup(_body().get("password_hash")))
+    return _jawab(admin_auth.rute_setup(_body().get("password_hash")), login_berhasil=True)
 
 
 @app.route("/api/admin/login", methods=["POST"])
 def api_admin_login():
-    return _jawab(admin_auth.rute_login(_body().get("password_hash")))
+    return _jawab(admin_auth.rute_login(_body().get("password_hash")), login_berhasil=True)
 
 
 @app.route("/api/admin/recovery", methods=["POST"])
@@ -184,7 +242,51 @@ def api_admin_recovery():
 def api_admin_reset():
     body = _body()
     return _jawab(admin_auth.rute_reset(
-        request.remote_addr or "?", body.get("recovery_hash"), body.get("new_password_hash")))
+        request.remote_addr or "?", body.get("recovery_hash"), body.get("new_password_hash")),
+        login_berhasil=True)
+
+
+@app.route("/api/admin/logout", methods=["POST"])
+def api_admin_logout():
+    session.clear()
+    return jsonify({"status": "ok", "data": {"logged_in": False}})
+
+
+# ---------------------------------------------------------------------
+# DATA MENU SATGAS (WAJIB LOGIN) — logika CSV di core/admin_data.py
+# ---------------------------------------------------------------------
+@app.route("/api/admin/feedback", methods=["GET"])
+@_wajib_admin
+def api_admin_feedback():
+    try:
+        limit = max(1, min(1000, int(request.args.get("limit", 100))))
+    except (TypeError, ValueError):
+        limit = 100
+    return jsonify({"status": "ok", "data": admin_data.baca_feedback(limit)})
+
+
+@app.route("/api/admin/export/<jenis>", methods=["GET"])
+@_wajib_admin
+def api_admin_export(jenis):
+    try:
+        nama, isi = admin_data.buat_csv_unduh(jenis)
+    except ValueError as e:
+        return jsonify({"status": "error", "message": str(e)}), 404
+    return Response(
+        "﻿" + isi,  # BOM agar Excel membaca UTF-8 dengan benar
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{nama}"', "Cache-Control": "no-store"},
+    )
+
+
+@app.route("/api/admin/clear/<jenis>", methods=["POST"])
+@_wajib_admin
+def api_admin_clear(jenis):
+    try:
+        jumlah = admin_data.kosongkan_data(jenis)
+    except ValueError as e:
+        return jsonify({"status": "error", "message": str(e)}), 404
+    return jsonify({"status": "ok", "data": {"cleared": jenis, "deleted": jumlah}})
 
 
 if __name__ == "__main__":

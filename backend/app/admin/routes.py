@@ -8,6 +8,8 @@
 #   POST /api/admin/logout
 #   GET  /api/admin/feedback?limit=
 #   GET  /api/admin/export/<scores|feedback>   -> unduh CSV
+#   POST /api/admin/clear/<scores|feedback>    -> kosongkan leaderboard / feedback
+#   (feedback, export & clear WAJIB login: cookie sesi is_admin)
 # KEAMANAN (logika di core/admin_auth.py, dipakai bersama app.py):
 #   - Frontend mengirim SHA-256(password); server menyimpan PBKDF2 dari hash itu
 #   - Perbandingan constant-time (hmac.compare_digest)
@@ -24,6 +26,7 @@ from ..common.responses import ambil_json, gagal, sukses
 from ..common.sanitize import ke_int
 from ..config import ROOT_DIR
 from ..feedback import repository as feedback_repo
+from ..leaderboard import repository as skor_repo
 from . import export
 
 if ROOT_DIR not in sys.path:
@@ -121,3 +124,16 @@ def unduh_csv(jenis):
         mimetype="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{nama}"'},
     )
+
+
+@bp.post("/clear/<jenis>")
+@wajib_admin
+def kosongkan_data(jenis):
+    """Reset data dari menu Satgas: 'scores' (leaderboard) atau 'feedback'."""
+    if jenis == "scores":
+        jumlah = skor_repo.hapus_semua_skor()
+    elif jenis == "feedback":
+        jumlah = feedback_repo.hapus_semua_feedback()
+    else:
+        return gagal("Jenis data harus 'scores' atau 'feedback'.", 404)
+    return sukses({"cleared": jenis, "deleted": jumlah})

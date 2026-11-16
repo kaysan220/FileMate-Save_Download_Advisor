@@ -31,6 +31,15 @@ CREATE TABLE IF NOT EXISTS feedback (
 CREATE INDEX IF NOT EXISTS idx_scores_skor ON scores (skor DESC, waktu ASC);
 """
 
+# Penanda bahwa CSV lama sudah pernah diimpor. Tanpa penanda ini, tabel yang
+# sengaja dikosongkan admin akan terisi lagi dari CSV setiap server di-restart.
+SKEMA_META = """
+CREATE TABLE IF NOT EXISTS meta (
+    kunci  TEXT PRIMARY KEY,
+    nilai  TEXT NOT NULL
+);
+"""
+
 
 def get_db():
     if "db" not in g:
@@ -53,7 +62,10 @@ def _baca_skema(path):
 
 
 def _impor_csv_lama(conn, cfg):
-    """Memindahkan isi hasil.csv & feedback_user.csv lama ke SQLite (hanya jika tabel kosong)."""
+    """Memindahkan isi hasil.csv & feedback_user.csv lama ke SQLite (hanya SEKALI seumur database)."""
+    if conn.execute("SELECT 1 FROM meta WHERE kunci = 'csv_lama_diimpor'").fetchone():
+        return
+    conn.execute("INSERT INTO meta (kunci, nilai) VALUES ('csv_lama_diimpor', datetime('now','localtime'))")
     if conn.execute("SELECT COUNT(*) FROM scores").fetchone()[0] == 0 and os.path.isfile(cfg["LEGACY_HASIL_CSV"]):
         with open(cfg["LEGACY_HASIL_CSV"], "r", encoding="utf-8") as f:
             for r in csv.DictReader(f):
@@ -83,5 +95,6 @@ def init_db(app):
     os.makedirs(os.path.dirname(cfg["DB_PATH"]), exist_ok=True)
     with sqlite3.connect(cfg["DB_PATH"]) as conn:
         conn.executescript(_baca_skema(cfg["SCHEMA_PATH"]))
+        conn.executescript(SKEMA_META)
         _impor_csv_lama(conn, cfg)
     app.teardown_appcontext(close_db)

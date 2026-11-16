@@ -1,41 +1,81 @@
 /* =========================================================
    FILEMATE GAME.JS — Engine Lab Simulasi 3 Kasus Acak
    + Proteksi Refresh, X-Ray, SHA-256, Keputusan User (play.html)
-   Membutuhkan: scenario_data.js (SCENARIO_BANK), common.js
+   Membutuhkan: common.js (escapeHTML, modal, confirmRestartSimulation)
+
+   SUDAH DIMIGRASI KE SERVER (backend/app/simulation/):
+   - Soal diambil dari POST /api/session/start (TANPA kunci jawaban)
+   - Benar/salah dinilai server lewat POST /api/session/<sid>/decide
+   - Hint, skor berjalan, ending & pembahasan dikirim server
+   - Skor akhir dihitung server lewat POST /api/session/<sid>/finish
+   File ini hanya berisi logika tampilan + request ke server.
    ========================================================= */
+let sessionId = null;
 let sessionScenarios = {};
 let activeStage = 1;
 let currentScore = 100;
 let secondsElapsed = 0;
-let mistakeTracker = { SPOOFING: 0, HASH: 0, FATIGUE: 0, IMPULSIVE: 0 };
-let actionHistoryLog = [];
+let isRequestPending = false;
+const hintCache = {}; // scenario_id -> {hint_author, hint_text}; penalti hint hanya 1x per kasus
 
-function shuffleArray(arr) {
-    const copy = [...arr];
-    for (let i = copy.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [copy[i], copy[j]] = [copy[j], copy[i]];
+// ---------- Request ke server simulasi ----------
+async function simApi(path, body) {
+    let res;
+    try {
+        res = await fetch('/api/session' + path, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body || {})
+        });
+    } catch (e) {
+        throw new Error('Server backend tidak aktif. Jalankan server Python terlebih dahulu.');
     }
-    return copy;
+    let json = {};
+    try { json = await res.json(); } catch (e) { /* respons bukan JSON */ }
+    if (!res.ok) throw new Error(json.message || ('HTTP ' + res.status));
+    return json.data;
 }
 
-function initSandboxSession() {
-    if (!document.getElementById('sandboxPanel') || typeof SCENARIO_BANK === 'undefined') return;
+function showGameError(message) {
+    document.getElementById('modalTitle').innerHTML = `<span style="color: var(--danger);">⚠️ Terjadi Kendala</span>`;
+    document.getElementById('modalContent').innerHTML = `<p style="font-size: 0.9rem;">${escapeHTML(message)}</p>`;
+    document.getElementById('modalBackdrop').classList.add('open');
+}
 
-    // === [AWAL ZONA MIGRASI BACKEND 3 - TUGAS ROHIT] ===
-    const pickOne = (pool) => JSON.parse(JSON.stringify(pool[Math.floor(Math.random() * pool.length)]));
-    const selectedPool = [
-        pickOne(SCENARIO_BANK.SPOOFING),
-        pickOne(SCENARIO_BANK.HASH),
-        pickOne(SCENARIO_BANK.FATIGUE)
-    ];
+function showSessionLoadError(message) {
+    const panel = document.getElementById('sandboxPanel');
+    if (!panel) return;
+    panel.innerHTML = `
+        <h2 style="font-size: 1.2rem;">⚠️ Lab Simulasi Tidak Dapat Dimulai</h2>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 8px;">${escapeHTML(message)}</p>
+        <p style="color: var(--text-muted); font-size: 0.84rem; margin-top: 8px;">
+            Soal & penilaian simulasi disimpan di server agar tidak bisa dicontek. Jalankan <code>python app.py</code>
+            lalu buka <code>http://127.0.0.1:5000</code>.
+        </p>
+        <button class="btn btn-primary btn-sm" style="margin-top: 14px;" onclick="isNavigatingIntentionally = true; window.location.reload()">↻ Coba Lagi</button>
+    `;
+}
 
-    const randomizedOrder = shuffleArray(selectedPool);
-    randomizedOrder.forEach((scen, index) => {
-        scen.files = shuffleArray(scen.files);
-        sessionScenarios[index + 1] = scen;
-    });
-    // === [AKHIR ZONA MIGRASI BACKEND 3] ===
+function setScore(score) {
+    currentScore = Number(score) || 0;
+    const el = document.getElementById('scoreIndicator');
+    if (el) el.textContent = `${currentScore} Pts`;
+}
+
+// ---------- Mulai sesi ----------
+async function initSandboxSession() {
+    if (!document.getElementById('sandboxPanel')) return;
+
+    let data;
+    try {
+        data = await simApi('/start');
+    } catch (e) {
+        showSessionLoadError(e.message);
+        return;
+    }
+    sessionId = data.session_id;
+    data.scenarios.forEach((scen, index) => { sessionScenarios[index + 1] = scen; });
+    setScore(data.current_score);
 
     setInterval(() => {
         secondsElapsed++;
@@ -110,6 +150,7 @@ function switchScenario(num) {
     }
 
     renderFiles();
+    if (c.result) showScenarioLessonWithEnding(c);
 }
 
 function renderFiles() {
@@ -132,9 +173,10 @@ function renderFiles() {
         } else if (f.status === 'FALSE_ALARM') {
             actionArea = `<span class="file-status-tag" style="background: var(--warning-soft); color: var(--warning);">⚠️ File Aman Dihapus (-5 Pts)</span>`;
         } else {
+            const dis = isRequestPending ? 'disabled' : '';
             actionArea = `
-                <button class="btn btn-safe btn-sm" onclick="takeAction(${idx}, 'OPEN')">📂 Buka File</button>
-                <button class="btn btn-danger btn-sm" onclick="takeAction(${idx}, 'QUARANTINE')">🗑️ Hapus File</button>
+                <button class="btn btn-safe btn-sm" ${dis} onclick="takeAction(${idx}, 'OPEN')">📂 Buka File</button>
+                <button class="btn btn-danger btn-sm" ${dis} onclick="takeAction(${idx}, 'QUARANTINE')">🗑️ Hapus File</button>
             `;
         }
 
@@ -158,10 +200,13 @@ function renderFiles() {
     });
 
     document.getElementById('progressStatus').textContent = `Diselesaikan: ${doneCount} / ${c.files.length} file`;
+}
 
-    if (doneCount === c.files.length) {
-        showScenarioLessonWithEnding(c);
-    }
+// Warna di X-Ray hanya berdasarkan BUKTI yang terlihat (ekstensi & permission),
+// bukan kunci jawaban — server tidak mengirim isMalware ke browser.
+const EKSTENSI_EKSEKUSI = ['.exe', '.bat', '.cmd', '.vbs', '.js', '.ps1', '.sh', '.scr', '.msi', '.com', '.jar'];
+function looksExecutable(f) {
+    return (f.perm || '').includes('x') || EKSTENSI_EKSEKUSI.includes(String(f.realExt || '').toLowerCase());
 }
 
 // 6. ANIMASI X-RAY DENGAN LABEL "File Permission:"
@@ -187,14 +232,20 @@ function openXrayAnimated(idx) {
     setTimeout(() => { bar.style.width = '100%'; txt.textContent = '[3/3] Pemindaian selesai!'; }, 500);
 
     setTimeout(() => {
+        const executable = looksExecutable(f);
         const baseName = f.realName.replace(f.fakeExt || '', '').replace(f.realExt, '');
         const visualName = f.fakeExt
             ? `${escapeHTML(baseName)}<span class="ext-badge ext-fake">${escapeHTML(f.fakeExt)} (Pengecoh)</span> &rarr; <span class="ext-badge ext-danger">${escapeHTML(f.realExt)} (Ekstensi Asli!)</span>`
-            : `${escapeHTML(baseName)}<span class="ext-badge ${f.isMalware ? 'ext-danger' : 'ext-safe'}">${escapeHTML(f.realExt)}</span>`;
+            : `${escapeHTML(baseName)}<span class="ext-badge ${executable ? 'ext-danger' : 'ext-neutral'}">${escapeHTML(f.realExt)}</span>`;
 
-        const permExplain = f.perm.includes('x')
+        const permExplain = (f.perm || '').includes('x')
             ? `⚠️ Ada huruf 'x' (Executable): File ini bisa mengeksekusi kode program di sistem! Dokumen/foto biasa tidak boleh punya izin 'x'.`
             : `✅ Hanya baca/tulis ('rw-'): File pasif biasa, tidak memiliki izin eksekusi program.`;
+
+        // Hasil pemindaian isi baru dibuka server setelah keputusan diambil
+        const payloadText = f.payloadStatus
+            ? `<span class="mono">${escapeHTML(f.payloadStatus)}</span>`
+            : `<span style="color: var(--text-muted);">🔒 Terungkap setelah kamu mengambil keputusan</span>`;
 
         const out = document.getElementById('xrayFinalOutput');
         out.style.display = 'block';
@@ -214,11 +265,11 @@ function openXrayAnimated(idx) {
                     <span class="explain-pill">💡 Penjelasan Awam: Jenis asli file yang dikenali sistem operasi, terlepas dari nama filenya.</span>
                 </div>
                 <div>
-                    <span style="color: var(--text-muted);">Header Biner (Magic Bytes):</span> <strong class="mono" style="color: ${f.isMalware ? 'var(--danger)' : 'var(--safe)'};">${escapeHTML(f.magicBytes)}</strong>
+                    <span style="color: var(--text-muted);">Header Biner (Magic Bytes):</span> <strong class="mono" style="color: ${executable ? 'var(--danger)' : 'var(--text-primary)'};">${escapeHTML(f.magicBytes)}</strong>
                     <span class="explain-pill">💡 Penjelasan Awam: Segel kode pertama di dalam isi file (misal %PDF untuk PDF asli, atau MZ untuk program .exe).</span>
                 </div>
                 <div>
-                    <span style="color: var(--text-muted);">Pemindaian Isi (Payload):</span> <span class="mono">${escapeHTML(f.payloadStatus)}</span>
+                    <span style="color: var(--text-muted);">Pemindaian Isi (Payload):</span> ${payloadText}
                 </div>
                 <div>
                     <span style="color: var(--text-muted);">File Permission:</span> <span class="mono">${escapeHTML(f.perm)}</span>
@@ -316,18 +367,48 @@ function animateHashDiff(fileHash, officialHash) {
     }, 25);
 }
 
-// 8. KEPUTUSAN TINDAKAN USER + PENCATATAN LOG REVIEW
-function takeAction(idx, action) {
-    const c = sessionScenarios[activeStage];
+// 8. KEPUTUSAN TINDAKAN USER — dinilai oleh server
+async function takeAction(idx, action) {
+    if (isRequestPending) return;
+    const stage = activeStage;
+    const c = sessionScenarios[stage];
     const f = c.files[idx];
-    if (!f.inspected) mistakeTracker.IMPULSIVE++;
+    if (f.status) return;
 
-    if (action === 'OPEN' && f.isMalware) {
-        f.status = 'INFECTED';
-        mistakeTracker[c.type]++;
-        updateScore(-15);
-        actionHistoryLog.push({ file: f.realName, stage: activeStage, userAction: "Dibuka", correct: false, note: "Malware Terpicu (-15 Pts)" });
+    isRequestPending = true;
+    renderFiles();
+    let res;
+    try {
+        res = await simApi(`/${encodeURIComponent(sessionId)}/decide`, {
+            file_id: f.id,
+            action: action === 'OPEN' ? 'open' : 'delete',
+            inspected: Boolean(f.inspected)
+        });
+    } catch (e) {
+        isRequestPending = false;
+        if (stage === activeStage) renderFiles();
+        showGameError(e.message);
+        return;
+    }
+    isRequestPending = false;
 
+    f.payloadStatus = res.payload_status;
+    if (res.outcome === 'malware_opened') f.status = 'INFECTED';
+    else if (res.outcome === 'false_alarm') f.status = 'FALSE_ALARM';
+    else f.status = res.is_malware ? 'QUARANTINED_CORRECT' : 'OPENED_SAFE';
+    setScore(res.current_score);
+
+    if (res.scenario_done) {
+        c.result = {
+            ending_type: res.ending_type,
+            ending: res.ending,
+            lesson_title: res.lesson_title,
+            lesson_body: res.lesson_body,
+            real_life_tip: res.real_life_tip
+        };
+    }
+
+    if (f.status === 'INFECTED') {
         const panel = document.getElementById('sandboxPanel');
         panel.classList.remove('malware-triggered');
         void panel.offsetWidth;
@@ -343,66 +424,66 @@ function takeAction(idx, action) {
             </div>
         `;
         document.getElementById('modalBackdrop').classList.add('open');
-    } else if (action === 'OPEN' && !f.isMalware) {
-        f.status = 'OPENED_SAFE';
-        actionHistoryLog.push({ file: f.realName, stage: activeStage, userAction: "Dibuka", correct: true, note: "Tepat (File Aman)" });
-    } else if (action === 'QUARANTINE' && f.isMalware) {
-        f.status = 'QUARANTINED_CORRECT';
-        actionHistoryLog.push({ file: f.realName, stage: activeStage, userAction: "Hapus", correct: true, note: "Tepat (Ancaman Dihapus)" });
-    } else if (action === 'QUARANTINE' && !f.isMalware) {
-        f.status = 'FALSE_ALARM';
-        mistakeTracker[c.type]++;
-        updateScore(-5);
-        actionHistoryLog.push({ file: f.realName, stage: activeStage, userAction: "Hapus", correct: false, note: "Salah Hapus File Aman (-5 Pts)" });
     }
-    renderFiles();
+
+    if (stage === activeStage) {
+        renderFiles();
+        if (c.result) showScenarioLessonWithEnding(c);
+    }
 }
 
 function showScenarioLessonWithEnding(c) {
     const drawer = document.getElementById('feedbackDrawer');
-    if (!drawer) return;
+    if (!drawer || !c.result) return;
+    const r = c.result;
 
-    const anyInfected = c.files.some(f => f.status === 'INFECTED');
-    const endingHtml = anyInfected
-        ? `<div class="ending-box ending-bad">${c.badEnding}</div>`
-        : `<div class="ending-box ending-good">${c.goodEnding}</div>`;
+    // Teks ending & pembahasan berasal dari data/skenario.json di server (boleh berisi <strong>, <code>)
+    const endingHtml = `<div class="ending-box ${r.ending_type === 'bad' ? 'ending-bad' : 'ending-good'}">${r.ending}</div>`;
 
     drawer.innerHTML = `
         <div style="font-size: 0.75rem; font-weight: 700; color: var(--accent); text-transform: uppercase;">
             📖 Akhir Cerita &amp; Pembahasan Kasus ${activeStage}
         </div>
         ${endingHtml}
-        <h3 style="font-size: 1.02rem; margin-top: 14px;">${c.lessonTitle}</h3>
-        <p style="font-size: 0.87rem; color: var(--text-secondary); margin-top: 4px;">${c.lessonBody}</p>
+        <h3 style="font-size: 1.02rem; margin-top: 14px;">${r.lesson_title}</h3>
+        <p style="font-size: 0.87rem; color: var(--text-secondary); margin-top: 4px;">${r.lesson_body}</p>
         <div style="margin-top: 10px; padding: 10px 12px; background: var(--bg-surface); border-radius: 8px; border: 1px solid var(--border-color); font-size: 0.84rem;">
-            🛠️ <strong>Tips Dunia Nyata:</strong> ${c.realLifeTip}
+            🛠️ <strong>Tips Dunia Nyata:</strong> ${r.real_life_tip}
         </div>
     `;
     drawer.classList.add('show');
 }
 
-function showHint() {
-    updateScore(-5);
+async function showHint() {
     const c = sessionScenarios[activeStage];
+    if (!c || !sessionId) return;
+
+    let hint = hintCache[c.id];
+    if (!hint) {
+        try {
+            hint = await simApi(`/${encodeURIComponent(sessionId)}/hint`, { scenario_id: c.id });
+        } catch (e) {
+            showGameError(e.message);
+            return;
+        }
+        hintCache[c.id] = hint;
+        setScore(hint.current_score);
+    }
+
     document.getElementById('modalTitle').textContent = '💡 Bantuan Analis Satgas (-5 Pts)';
     document.getElementById('modalContent').innerHTML = `
         <div style="padding: 12px; background: var(--bg-subtle); border-radius: 8px; border-left: 3px solid var(--accent);">
             <div style="font-size: 0.78rem; color: var(--accent); font-weight: 700; margin-bottom: 4px;">
-                🎙️ Pesan dari ${escapeHTML(c.hintAuthor)}:
+                🎙️ Pesan dari ${escapeHTML(hint.hint_author)}:
             </div>
-            <p style="font-size: 0.9rem;">"${escapeHTML(c.hintText)}"</p>
+            <p style="font-size: 0.9rem;">"${escapeHTML(hint.hint_text)}"</p>
         </div>
     `;
     document.getElementById('modalBackdrop').classList.add('open');
 }
 
-function updateScore(delta) {
-    currentScore = Math.max(0, currentScore + delta);
-    const el = document.getElementById('scoreIndicator');
-    if (el) el.textContent = `${currentScore} Pts`;
-}
-
-function nextScenario() {
+async function nextScenario() {
+    if (!sessionId || isRequestPending) return;
     const currentFiles = sessionScenarios[activeStage].files;
     const allAnswered = currentFiles.every(f => f.status !== undefined && f.status !== null);
 
@@ -416,13 +497,24 @@ function nextScenario() {
     if (activeStage < 3) {
         switchScenario(activeStage + 1);
         window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-        isNavigatingIntentionally = true;
-        localStorage.setItem('filemate_final_score', currentScore);
-        localStorage.setItem('filemate_seconds', secondsElapsed);
-        localStorage.setItem('filemate_mistakes', JSON.stringify(mistakeTracker));
-        localStorage.setItem('filemate_history', JSON.stringify(actionHistoryLog));
-        window.location.href = 'result.html';
+        return;
     }
+
+    isRequestPending = true;
+    try {
+        await simApi(`/${encodeURIComponent(sessionId)}/finish`);
+    } catch (e) {
+        isRequestPending = false;
+        showGameError(e.message);
+        return;
+    }
+
+    // Hanya session id yang diteruskan ke result.html. Skor, diagnosis & riwayat
+    // diambil result.js langsung dari server (GET /api/session/<sid>/result).
+    localStorage.setItem('filemate_session_id', sessionId);
+    ['filemate_final_score', 'filemate_seconds', 'filemate_mistakes', 'filemate_history']
+        .forEach(k => localStorage.removeItem(k)); // sisa versi lama
+    isNavigatingIntentionally = true;
+    window.location.href = 'result.html';
 }
 document.addEventListener('DOMContentLoaded', initSandboxSession);

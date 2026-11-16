@@ -23,6 +23,15 @@ def semua_feedback(limit=None):
     return get_db().execute(sql, params).fetchall()
 
 
+def hapus_semua_feedback():
+    """Mengosongkan tabel feedback (menu Satgas). Nomor responden mulai lagi dari P01."""
+    db = get_db()
+    jumlah = db.execute("DELETE FROM feedback").rowcount
+    db.execute("DELETE FROM sqlite_sequence WHERE name = 'feedback'")
+    db.commit()
+    return jumlah
+
+
 def ke_dict(row):
     return {
         "kode_responden": f"P{row['id']:02d}",

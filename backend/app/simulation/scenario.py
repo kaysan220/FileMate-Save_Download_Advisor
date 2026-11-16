@@ -13,9 +13,11 @@ from flask import current_app
 
 KATEGORI = ("SPOOFING", "HASH", "FATIGUE")
 
-# Field yang hanya boleh diketahui server (kunci jawaban & hint berbayar)
-FIELD_RAHASIA_FILE = ("isMalware",)
-FIELD_RAHASIA_SKENARIO = ("hintText", "goodEnding", "badEnding")
+# Field yang hanya boleh diketahui server (kunci jawaban, hint berbayar,
+# ending & pembahasan). payloadStatus ikut disembunyikan karena isinya
+# langsung menyebut "Trojan..." / "Bersih". Semua dikirim lewat /decide & /hint.
+FIELD_RAHASIA_FILE = ("isMalware", "payloadStatus")
+FIELD_RAHASIA_SKENARIO = ("hintText", "goodEnding", "badEnding", "lessonTitle", "lessonBody", "realLifeTip")
 
 
 def muat_bank():

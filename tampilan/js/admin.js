@@ -8,10 +8,12 @@
      3. Lupa password       -> password cadangan tim -> password baru + konfirmasi
    Password tidak pernah dikirim apa adanya: frontend mengirim
    SHA-256(password), backend menyimpan & membandingkan hash.
-   Menu setelah login menampilkan 3 tombol:
-     1. Reset Leaderboard
-     2. Reset Masukan
-     3. Unduh CSV Feedback
+   Menu setelah login (semua data dari server, wajib cookie sesi admin):
+     - Daftar masukan responden  (GET  /api/admin/feedback)
+     1. Reset Leaderboard        (POST /api/admin/clear/scores)
+     2. Reset Masukan            (POST /api/admin/clear/feedback)
+     3. Unduh CSV Feedback       (GET  /api/admin/export/feedback)
+     4. Keluar                   (POST /api/admin/logout)
    ========================================================= */
 const ADMIN_MIN_PASSWORD = 8;
 let adminRecoveryHash = null; // hash password cadangan, hanya disimpan di memori selama reset
@@ -225,6 +227,7 @@ function handleAdminLock(res) {
 async function promptMaintainerAccess() {
     if (!document.getElementById('modalBackdrop')) return;
     adminRecoveryHash = null;
+    await adminApi('POST', '/logout'); // sesi lama ditutup: password selalu diminta ulang
     const res = await adminApi('GET', '/status');
     if (handleAdminLock(res)) return;
     if (!res.ok) {
@@ -352,34 +355,66 @@ async function submitAdminReset() {
     showToastNotification(`<strong style="color: var(--safe);">✅ Password maintainer berhasil diganti!</strong>`);
 }
 
-function openFeedbackViewer() {
+// =========================================================
+// MENU SATGAS (setelah login) — SUDAH DIMIGRASI KE SERVER
+//   GET  /api/admin/feedback?limit=      -> daftar masukan responden
+//   POST /api/admin/clear/scores         -> kosongkan papan peringkat
+//   POST /api/admin/clear/feedback       -> kosongkan masukan
+//   GET  /api/admin/export/feedback      -> unduh CSV masukan
+//   POST /api/admin/logout               -> tutup sesi admin
+// Semua endpoint data wajib cookie sesi admin (didapat saat login berhasil).
+// =========================================================
+
+// Respons gagal dari endpoint data admin. true = sudah ditangani.
+function handleAdminDataError(res) {
+    if (handleAdminLock(res)) return true;
+    if (res.status === 401) {
+        showAdminLogin();
+        showAdminError('Sesi admin berakhir. Silakan masukkan password lagi.');
+        return true;
+    }
+    return false;
+}
+
+function adminListMessage(text) {
+    return `<p style="font-size: 0.88rem; color: var(--text-muted); padding: 12px 0;">${text}</p>`;
+}
+
+async function openFeedbackViewer() {
     const backdrop = document.getElementById('modalBackdrop');
     if (!backdrop) return;
+    stopAdminCountdown();
 
-    const feedbacks = JSON.parse(localStorage.getItem('filemate_feedbacks') || '[]');
+    document.getElementById('modalTitle').innerHTML = `🛠️ Menu Satgas — Rekap Masukan`;
+    document.getElementById('modalContent').innerHTML = adminListMessage('Memuat data dari server...');
+    backdrop.classList.add('open');
+
+    const res = await adminApi('GET', '/feedback?limit=1000');
+    if (!res.ok && handleAdminDataError(res)) return;
+
+    const feedbacks = res.ok && Array.isArray(res.data) ? res.data : [];
     document.getElementById('modalTitle').innerHTML = `🛠️ Menu Satgas — Rekap Masukan (${feedbacks.length})`;
 
-    let listHtml = '';
-    if (feedbacks.length === 0) {
-        listHtml = `<p style="font-size: 0.88rem; color: var(--text-muted); padding: 12px 0;">Belum ada saran/masukan dari pengguna.</p>`;
+    let listHtml;
+    if (!res.ok) {
+        listHtml = adminListMessage(`⚠️ ${escapeHTML(res.message)}`);
+    } else if (feedbacks.length === 0) {
+        listHtml = adminListMessage('Belum ada saran/masukan dari pengguna.');
     } else {
-        feedbacks.forEach((fb, i) => {
-            listHtml += `
-                <div style="padding: 10px 12px; background: var(--bg-subtle); border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 8px; font-size: 0.85rem;">
-                    <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; color: var(--text-muted); font-size: 0.76rem; margin-bottom: 4px;">
-                        <span>Responden #${i + 1} (<strong class="mono" style="color: var(--accent);">${escapeHTML(fb.user)}</strong> • Skor: ${Number(fb.score) || 0})</span>
-                        <span>${escapeHTML(fb.date)}</span>
-                    </div>
-                    <div style="color: var(--text-primary); word-break: break-word;">"${escapeHTML(fb.message)}"</div>
+        listHtml = feedbacks.map(fb => `
+            <div style="padding: 10px 12px; background: var(--bg-subtle); border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 8px; font-size: 0.85rem;">
+                <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; color: var(--text-muted); font-size: 0.76rem; margin-bottom: 4px;">
+                    <span>Responden ${escapeHTML(fb.kode_responden)} (<strong class="mono" style="color: var(--accent);">${escapeHTML(fb.inisial_anonim)}</strong> • Skor: ${Number(fb.skor) || 0})</span>
+                    <span>${escapeHTML(fb.waktu_input)}</span>
                 </div>
-            `;
-        });
+                <div style="color: var(--text-primary); word-break: break-word;">"${escapeHTML(fb.pesan)}"</div>
+            </div>
+        `).join('');
     }
 
-    // Tampilkan 3 Tombol Terpisah Secara Permanen
     document.getElementById('modalContent').innerHTML = `
         <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 12px;">
-            Saat Backend Python aktif, seluruh data ini disimpan langsung di server Linux (<code>chmod 600 data/feedback_user.csv</code>).
+            Data diambil langsung dari server (masukan seluruh pengguna, terbaru di atas).
         </p>
         <div style="max-height: 240px; overflow-y: auto; margin-bottom: 14px; padding-right: 4px;">
             ${listHtml}
@@ -389,75 +424,116 @@ function openFeedbackViewer() {
                 <button type="button" class="btn btn-danger btn-sm" onclick="confirmResetLeaderboardOnly()">🗑️ Reset Leaderboard</button>
                 <button type="button" class="btn btn-danger btn-sm" onclick="confirmResetFeedbackOnly()">🗑️ Reset Masukan</button>
             </div>
-            <button type="button" class="btn btn-primary btn-sm" onclick="exportFeedbackCSV()">📥 Unduh CSV Feedback</button>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-ghost btn-sm" onclick="logoutMaintainer()">🔒 Keluar</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btnExportFeedback" onclick="exportFeedbackCSV()">📥 Unduh CSV Feedback</button>
+            </div>
         </div>
     `;
-    backdrop.classList.add('open');
+}
+
+function renderResetConfirm(title, html, executeFn, label) {
+    document.getElementById('modalTitle').innerHTML = title;
+    document.getElementById('modalContent').innerHTML = `
+        <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.55;">${html}</p>
+        <div id="pinErrorMsg" style="color: var(--danger); font-size: 0.78rem; margin-top: 8px; min-height: 18px;"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--border-color);">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="openFeedbackViewer()">Batal</button>
+            <button type="button" class="btn btn-danger btn-sm" id="adminSubmitBtn" onclick="${executeFn}()">${label}</button>
+        </div>
+    `;
+}
+
+async function clearServerData(jenis, pesanSukses) {
+    setAdminBusy(true);
+    const res = await adminApi('POST', '/clear/' + jenis);
+    setAdminBusy(false);
+    if (!res.ok) {
+        if (handleAdminDataError(res)) return false;
+        showAdminError(res.message);
+        return false;
+    }
+    const jumlah = Number(res.data && res.data.deleted) || 0;
+    await openFeedbackViewer();
+    showToastNotification(`<strong style="color: var(--safe);">✅ ${pesanSukses} (${jumlah} data dihapus dari server)</strong>`);
+    return true;
 }
 
 // Tombol 1: Konfirmasi & Eksekusi Reset Leaderboard Saja
 function confirmResetLeaderboardOnly() {
-    document.getElementById('modalTitle').innerHTML = `⚠️ Konfirmasi Reset Leaderboard`;
-    document.getElementById('modalContent').innerHTML = `
-        <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.55;">
-            Apakah kamu yakin ingin mengosongkan seluruh <strong>Papan Peringkat (Leaderboard)</strong>?<br>
-            <span style="font-size: 0.8rem; color: var(--text-muted);">(Catatan: Data saran &amp; masukan responden tidak akan ikut terhapus).</span>
-        </p>
-        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-color);">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="openFeedbackViewer()">Batal</button>
-            <button type="button" class="btn btn-danger btn-sm" onclick="executeResetLeaderboardOnly()">Ya, Reset Leaderboard</button>
-        </div>
-    `;
+    renderResetConfirm(
+        `⚠️ Konfirmasi Reset Leaderboard`,
+        `Apakah kamu yakin ingin mengosongkan seluruh <strong>Papan Peringkat (Leaderboard)</strong> di server?
+         Semua skor peserta akan <strong>dihapus permanen</strong>.<br>
+         <span style="font-size: 0.8rem; color: var(--text-muted);">(Catatan: Data saran &amp; masukan responden tidak akan ikut terhapus).</span>`,
+        'executeResetLeaderboardOnly', 'Ya, Reset Leaderboard'
+    );
 }
 
-function executeResetLeaderboardOnly() {
-    localStorage.removeItem('filemate_leaderboard');
-    if (typeof renderHomeLeaderboard === 'function') renderHomeLeaderboard();
-    openFeedbackViewer();
-    showToastNotification(`<strong style="color: var(--safe);">✅ Papan Peringkat berhasil dikosongkan!</strong>`);
+async function executeResetLeaderboardOnly() {
+    const ok = await clearServerData('scores', 'Papan Peringkat berhasil dikosongkan!');
+    if (ok && typeof renderHomeLeaderboard === 'function') renderHomeLeaderboard();
 }
 
 // Tombol 2: Konfirmasi & Eksekusi Reset Masukan/Feedback Saja
 function confirmResetFeedbackOnly() {
-    document.getElementById('modalTitle').innerHTML = `⚠️ Konfirmasi Reset Masukan`;
-    document.getElementById('modalContent').innerHTML = `
-        <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.55;">
-            Apakah kamu yakin ingin menghapus seluruh daftar <strong>Saran &amp; Masukan Responden</strong> di browser ini?<br>
-            <span style="font-size: 0.8rem; color: var(--text-muted);">(Catatan: Data skor di Papan Peringkat tidak akan berubah).</span>
-        </p>
-        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-color);">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="openFeedbackViewer()">Batal</button>
-            <button type="button" class="btn btn-danger btn-sm" onclick="executeResetFeedbackOnly()">Ya, Reset Masukan</button>
-        </div>
-    `;
+    renderResetConfirm(
+        `⚠️ Konfirmasi Reset Masukan`,
+        `Apakah kamu yakin ingin menghapus seluruh daftar <strong>Saran &amp; Masukan Responden</strong> di server?
+         Data akan <strong>dihapus permanen</strong>. Unduh CSV-nya dulu bila masih dibutuhkan.<br>
+         <span style="font-size: 0.8rem; color: var(--text-muted);">(Catatan: Data skor di Papan Peringkat tidak akan berubah).</span>`,
+        'executeResetFeedbackOnly', 'Ya, Reset Masukan'
+    );
 }
 
-function executeResetFeedbackOnly() {
-    localStorage.removeItem('filemate_feedbacks');
-    openFeedbackViewer();
-    showToastNotification(`<strong style="color: var(--safe);">✅ Daftar saran &amp; masukan berhasil dikosongkan!</strong>`);
+async function executeResetFeedbackOnly() {
+    await clearServerData('feedback', 'Daftar saran &amp; masukan berhasil dikosongkan!');
 }
 
-// Tombol 3: Unduh CSV Feedback
-function exportFeedbackCSV() {
-    const feedbacks = JSON.parse(localStorage.getItem('filemate_feedbacks') || '[]');
-    if (!feedbacks.length) {
-        showToastNotification(`<strong style="color: var(--warning);">Belum ada data masukan responden untuk diunduh.</strong>`);
+// Tombol 3: Unduh CSV Feedback (dibuat server dari data asli)
+async function exportFeedbackCSV() {
+    const btn = document.getElementById('btnExportFeedback');
+    if (btn) btn.disabled = true;
+    let res;
+    try {
+        res = await fetch('/api/admin/export/feedback', { credentials: 'same-origin' });
+    } catch (e) {
+        if (btn) btn.disabled = false;
+        showToastNotification(`<strong style="color: var(--danger);">Server backend tidak aktif.</strong>`);
         return;
     }
-    let csvContent = "Kode_Responden,Inisial_Anonim,Skor,Waktu_Input,Saran_dan_Masukan\n";
-    feedbacks.forEach((f, idx) => {
-        const code = `P${String(idx + 1).padStart(2, '0')}`;
-        let cleanMsg = String(f.message || '').replace(/"/g, '""');
-        if (/^[=+\-@]/.test(cleanMsg)) cleanMsg = "'" + cleanMsg;
-        csvContent += `${code},${f.user},${f.score},"${f.date}","${cleanMsg}"\n`;
-    });
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    if (btn) btn.disabled = false;
+    if (!res.ok) {
+        let json = {};
+        try { json = await res.json(); } catch (e) { /* bukan JSON */ }
+        const info = {
+            ok: false, status: res.status, message: json.message || ('HTTP ' + res.status),
+            retryAfter: Number(json.retry_after) || 0, requireRecovery: Boolean(json.require_recovery)
+        };
+        if (!handleAdminDataError(info)) {
+            showToastNotification(`<strong style="color: var(--danger);">${escapeHTML(info.message)}</strong>`);
+        }
+        return;
+    }
+    const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = "feedback_user.csv";
+    a.download = 'feedback_user.csv';
+    document.body.appendChild(a);
     a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+// Tombol 4: Keluar (hapus cookie sesi admin di server)
+async function logoutMaintainer() {
+    await adminApi('POST', '/logout');
+    closeModal();
+    showToastNotification(`<strong style="color: var(--safe);">🔒 Kamu sudah keluar dari Menu Satgas.</strong>`);
+}
+
+// Sisa data versi lama (feedback di localStorage) tidak dipakai lagi
+try { localStorage.removeItem('filemate_feedbacks'); } catch (e) { /* storage diblokir */ }
 
 document.addEventListener('DOMContentLoaded', initSecretMaintainerTrigger);

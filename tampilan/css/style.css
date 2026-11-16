@@ -360,6 +360,13 @@ body {
     border: 1px solid var(--safe);
 }
 
+/* Ekstensi tanpa tanda bahaya yang terlihat (dipakai X-Ray lab simulasi) */
+.ext-neutral {
+    background: var(--bg-subtle);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
 /* =========================================================
    MODAL (dipakai semua halaman)
    ========================================================= */

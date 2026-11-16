@@ -2,13 +2,13 @@
 # RUTE LEADERBOARD & STATISTIK DASHBOARD
 #   GET  /api/leaderboard?limit=6
 #   GET  /api/dashboard-stats
-#   POST /api/submit-score   (lama — skor dihitung dari data klien)
+# Skor hanya bisa masuk lewat POST /api/session/<sid>/save (simulation/routes.py).
+# Endpoint lama POST /api/submit-score DIHAPUS (16/11/2026) karena menerima skor
+# dari browser sehingga leaderboard bisa dipalsukan (SECURITY.md K-03).
 # =====================================================================
 from flask import Blueprint, jsonify, request
 
-from ..common.responses import ambil_json
-from ..common.sanitize import ke_int, sanitasi_waktu, sensor_nama
-from ..scoring.calculator import kategori_risiko, nilai
+from ..common.sanitize import ke_int
 from ..simulation.scenario import ringkasan_bank
 from . import repository
 
@@ -33,21 +33,3 @@ def dashboard_stats():
         "kategori": kategori,
         **stat,
     })
-
-
-@bp.post("/submit-score")
-def submit_score_lama():
-    """
-    Endpoint lama untuk result.html. Lebih aman memakai /api/session/<sid>/finish
-    karena di sana skor dihitung sepenuhnya oleh server.
-    """
-    body = ambil_json()
-    if "malware_opened" in body:
-        skor, kategori = nilai(body.get("malware_opened"), body.get("false_alarm"), body.get("hints_used"))
-    else:
-        skor = ke_int(body.get("score"), default=0, minimum=0, maksimum=100)
-        kategori = kategori_risiko(skor)
-
-    nama = sensor_nama(body.get("username"))
-    repository.simpan_skor(nama, skor, sanitasi_waktu(body.get("time")), kategori)
-    return jsonify({"status": "ok", "masked_name": nama, "score": skor, "risk_category": kategori})

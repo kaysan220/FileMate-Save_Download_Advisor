@@ -3,34 +3,15 @@
    (dashboard.html)
    ========================================================= */
 
-// Statistik diambil dari backend Flask (/api/dashboard-stats).
-// Jika backend tidak aktif (file dibuka langsung), dihitung dari SCENARIO_BANK & localStorage.
-function hitungStatistikLokal() {
-    let totalSkenario = 0, totalFile = 0, totalMalware = 0;
-    if (typeof SCENARIO_BANK !== 'undefined') {
-        Object.values(SCENARIO_BANK).forEach(daftar => {
-            totalSkenario += daftar.length;
-            daftar.forEach(s => {
-                totalFile += s.files.length;
-                totalMalware += s.files.filter(f => f.isMalware).length;
-            });
-        });
-    }
-    let lb = [];
-    try { lb = JSON.parse(localStorage.getItem('filemate_leaderboard') || '[]'); } catch (e) { lb = []; }
-    const skor = lb.map(r => Number(r.score)).filter(n => !isNaN(n));
-    return {
-        total_skenario: totalSkenario,
-        total_file: totalFile,
-        total_malware: totalMalware,
-        total_aman: totalFile - totalMalware,
-        total_sesi: skor.length,
-        rata_rata_skor: skor.length ? Math.round(skor.reduce((a, b) => a + b, 0) / skor.length) : 0
-    };
-}
-
+// Semua statistik diambil dari backend Flask (/api/dashboard-stats):
+// jumlah skenario/file/jebakan dari data/skenario.json, sesi & rata-rata skor dari data skor.
+// Jika backend tidak aktif, angka ditampilkan "–" (tidak ada lagi data soal di browser).
 function tampilkanStatistik(st) {
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    if (!st) {
+        ['statSkenario', 'statFile', 'statMalware', 'statAman', 'statSesi', 'statRataSkor'].forEach(id => set(id, '–'));
+        return;
+    }
     set('statSkenario', st.total_skenario);
     set('statFile', st.total_file);
     set('statMalware', st.total_malware);
@@ -41,11 +22,10 @@ function tampilkanStatistik(st) {
 
 async function renderDashboardStats() {
     if (!document.getElementById('dashStats')) return;
-    tampilkanStatistik(hitungStatistikLokal());
     try {
         tampilkanStatistik(await apiGet('/dashboard-stats'));
     } catch (e) {
-        // Backend offline: tetap memakai statistik lokal.
+        tampilkanStatistik(null); // Backend offline: data hanya tersedia di server
     }
 }
 

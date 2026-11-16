@@ -42,3 +42,12 @@ def semua_skor():
     return get_db().execute(
         "SELECT id, nama_anonim, skor, waktu, kategori_risiko, created_at FROM scores ORDER BY id"
     ).fetchall()
+
+
+def hapus_semua_skor():
+    """Mengosongkan papan peringkat (menu Satgas)."""
+    db = get_db()
+    jumlah = db.execute("DELETE FROM scores").rowcount
+    db.execute("DELETE FROM sqlite_sequence WHERE name = 'scores'")
+    db.commit()
+    return jumlah
