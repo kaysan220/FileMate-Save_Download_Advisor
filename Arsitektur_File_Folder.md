@@ -9,10 +9,10 @@ Misalnya : README.md --- OK 13/11/2026
 
 
 FileMate/
-├── README.md
-├── CHANGELOG.md
-├── .env.example                  ← SECRET_KEY, ADMIN_PIN
-├── .gitignore                    ← .env, *.db, __pycache__, data/exports/*
+├── README.md                                                                    --- BELUM ADA
+├── CHANGELOG.md                                                                 --- BELUM ADA
+├── .env.example                  ← SECRET_KEY, ADMIN_PIN                        --- OK 18/11/2026
+├── .gitignore                    ← .env, *.db, __pycache__, data/exports/*      --- SEBAGIAN 18/11/2026
 │
 ├── docs/                         --- OK 14/11/2026
 │   ├── ARCHITECTURE.md           ← gambaran sistem, alur, struktur folder        --- OK 14/11/2026 
@@ -42,58 +42,70 @@ FileMate/
 │       │   └── admin.js          ← menu maintainer                               --- MIGRASI KE SERVER OK 16/11/2026
 │       └── images/                     --- OK 13/10/2026
 │
-├── backend/
-│   ├── wsgi.py                   ← titik masuk gunicorn
-│   ├── requirements.txt
+├── backend/                                                                     --- OK 18/11/2026 (server jalan)
+│   ├── wsgi.py                   ← titik masuk gunicorn                          --- OK 18/11/2026
+│   ├── requirements.txt                                                          --- OK 18/11/2026
 │   └── app/
-│       ├── __init__.py           ← create_app(), daftar blueprint, security headers
-│       ├── config.py             ← baca .env, path data
-│       ├── db.py                 ← koneksi SQLite
-│       ├── common/
-│       │   ├── responses.py      ← format JSON sukses/error yang seragam
-│       │   └── sanitize.py       ← sensor_nama(), sanitasi_teks_csv()
+│       ├── __init__.py           ← create_app(), daftar blueprint, security headers  --- OK 18/11/2026
+│       ├── config.py             ← baca .env, path data                          --- OK 18/11/2026
+│       ├── db.py                 ← koneksi SQLite                                --- OK 18/11/2026
+│       ├── common/                                                               --- OK 18/11/2026
+│       │   ├── responses.py      ← format JSON sukses/error yang seragam         --- OK 18/11/2026
+│       │   └── sanitize.py       ← sensor_nama(), sanitasi_teks_csv()            --- OK 18/11/2026
 │       ├── simulation/                                                          --- OK 16/11/2026 (dipakai game.js)
 │       │   ├── routes.py         ← /api/session/*                                --- OK 16/11/2026
 │       │   ├── service.py        ← state sesi, nilai keputusan, hint             --- OK 16/11/2026
 │       │   ├── scenario.py       ← baca & acak skenario.json                     --- OK 16/11/2026
-│       │   └── linux_utils.py    ← sha256sum, file, ls -l pada dummy
-│       ├── scoring/
-│       │   └── calculator.py     ← nilai(), kategori risiko
-│       ├── leaderboard/
-│       │   ├── routes.py
-│       │   └── repository.py     ← query SQL scores
-│       ├── feedback/
-│       │   ├── routes.py
-│       │   └── repository.py     ← query SQL feedback
+│       │   └── linux_utils.py    ← sha256sum, file, ls -l pada dummy             --- OK 18/11/2026
+│       ├── scoring/                                                              --- OK 18/11/2026
+│       │   └── calculator.py     ← nilai(), kategori risiko                      --- OK 18/11/2026
+│       ├── leaderboard/                                                          --- OK 18/11/2026
+│       │   ├── routes.py                                                         --- OK 18/11/2026
+│       │   └── repository.py     ← query SQL scores                              --- OK 18/11/2026
+│       ├── feedback/                                                             --- OK 18/11/2026
+│       │   ├── routes.py         ← (kosong: feedback lewat /api/session/<sid>/feedback)  --- OK 18/11/2026
+│       │   └── repository.py     ← query SQL feedback                            --- OK 18/11/2026
 │       └── admin/
 │           ├── routes.py         ← login password, lihat feedback, unduh CSV, reset data  --- OK 16/11/2026
-│           └── export.py         ← SQL → CSV
+│           └── export.py         ← SQL → CSV                                     --- OK 18/11/2026
+│
+├── core/                         ← (TAMBAHAN, tidak ada di rencana awal)         --- OK 18/11/2026
+│   ├── admin_auth.py             ← password admin, penundaan login, sesi admin   --- OK 18/11/2026
+│   ├── admin_data.py             ← baca / export / kosongkan CSV (app.py)        --- OK 18/11/2026
+│   ├── algorithms.py             ← skenario, skor, sensor nama, CSV (app.py)     --- OK 18/11/2026
+│   ├── atur_password_cadangan.py ← skrip isi ADMIN_RECOVERY_HASH ke .env         --- OK 18/11/2026
+│   ├── env.py                    ← pemuat .env untuk app.py                      --- OK 18/11/2026
+│   ├── proxy.py                  ← ProxyFix (PROXY_COUNT)                        --- OK 18/11/2026
+│   └── linux_utils.py            ← sha256sum / file / ls -l (app.py)             --- OK 18/11/2026
+│
+├── app.py                        ← (TAMBAHAN) server versi CSV, dipakai sekarang --- OK 18/11/2026
 │
 ├── database/
-│   └── schema.sql
+│   └── schema.sql                                                               --- BELUM ADA (pakai SKEMA_BAWAAN di db.py)
 │
 ├── data/                         ← TIDAK pernah disajikan ke browser
-│   ├── scenarios/skenario.json
-│   ├── dummy_files/
-│   ├── filemate.db               ← dibuat oleh init_db.py
+│   ├── scenarios/skenario.json   ← sekarang di data/skenario.json                --- OK 18/11/2026 (beda lokasi)
+│   ├── dummy_files/              ← 18 file dummy                                 --- OK 18/11/2026
+│   ├── filemate.db               ← dibuat otomatis oleh db.init_db()             --- OK 18/11/2026
 │   └── exports/
-│       ├── hasil.csv
-│       └── feedback_user.csv
+│       ├── hasil.csv             ← sekarang di data/hasil.csv                    --- OK 18/11/2026 (beda lokasi)
+│       └── feedback_user.csv     ← sekarang di data/feedback_user.csv            --- OK 18/11/2026 (beda lokasi)
 │
-├── scripts/
-│   ├── init_db.py
-│   ├── buat_dummy.py             ← buat dummy + isi hash asli ke JSON
-│   └── export_csv.py
+├── scripts/                                                                     --- BELUM ADA
+│   ├── init_db.py                ← belum perlu: tabel dibuat otomatis oleh db.py --- DIGANTIKAN db.init_db()
+│   ├── buat_dummy.py             ← sekarang di data/buat_dummy.py                --- OK 18/11/2026 (beda lokasi)
+│   └── export_csv.py             ← belum perlu: export lewat menu admin          --- DIGANTIKAN /api/admin/export/<jenis>
 │
-├── tests/
-│   ├── test_scoring.py
-│   ├── test_sanitize.py
-│   ├── test_scenario.py
-│   └── test_api.py
+├── tests/                                                                       --- SEBAGIAN
+│   ├── test_linux_utils.py       ← (TAMBAHAN) ada, tetapi GAGAL (lihat catatan)  --- PERLU DIPERBAIKI
+│   ├── test_scoring.py                                                           --- BELUM ADA
+│   ├── test_sanitize.py                                                          --- BELUM ADA
+│   ├── test_scenario.py                                                          --- BELUM ADA
+│   └── test_api.py                                                               --- BELUM ADA
 │
-└── deployment/
-    ├── nginx.conf
-    └── filemate.service          ← systemd (Docker opsional nanti)
+└── deployment/                                                                  --- BELUM ADA
+    ├── nginx.conf                ← panduan ada di docs/NGINX_KEAMANAN_ADMIN.md   --- BELUM ADA (file config)
+    └── filemate.service          ← systemd (Docker opsional nanti)               --- BELUM ADA
 
 
 =====================================================
@@ -371,3 +383,71 @@ KEAMANAN LOGIN ADMIN — PERBAIKAN BERTAHAP
       docs/NGINX_KEAMANAN_ADMIN.md (BARU) ← real_ip Cloudflare, X-Forwarded-For,
                                             limit_req, PROXY_COUNT, firewall, cara uji
       core/PANDUAN_YAZID.txt              ← ditambah rujukan ke panduan di atas
+
+
+
+
+
+=====================================================
+PROGRESS BACKEND (di luar tampilan/ & frontend) — dicek 18/11/2026
+=====================================================
+Cara cek: kode dibaca per file + uji cepat kedua server dengan Flask test client
+(POST /api/session/start -> 201, GET /api/leaderboard & /api/dashboard-stats -> 200).
+
+[A] SUDAH SELESAI
+    Server
+      - app.py (root, penyimpanan CSV)    : server yang dipakai sekarang. Semua endpoint
+                                            /api/session/*, /api/leaderboard, /api/dashboard-stats,
+                                            /api/inspect, /api/hash, /api/admin/* jalan.
+      - backend/ (Flask + SQLite)         : create_app(), 4 blueprint (simulation, leaderboard,
+                                            feedback, admin), security headers, ProxyFix.
+                                            20 endpoint /api terdaftar & bisa dijalankan.
+      - backend/wsgi.py                   : python backend/wsgi.py / gunicorn (1 worker).
+      - backend/requirements.txt          : Flask 3.x, gunicorn (non-Windows).
+    Logika
+      - simulation/ : sesi, skor berjalan, hint, ending, hasil, simpan 1x, feedback 1x
+      - scoring/calculator.py : skor awal 100; -15 malware dibuka, -5 salah hapus,
+                                -5 hint; kategori <=50 TINGGI / 51-80 SEDANG / >80 RENDAH
+      - common/ : format JSON seragam, sensor_nama (R****T), anti-XSS & anti-CSV Injection
+      - leaderboard/ & feedback/ repository : query SQL + hapus semua (reset admin)
+      - admin/export.py : SQL -> CSV, tiap sel disanitasi ulang
+      - db.py : tabel scores, feedback, meta dibuat otomatis; CSV lama diimpor 1x
+    Keamanan login admin (core/admin_auth.py) : lihat bagian "KEAMANAN LOGIN ADMIN" [1]-[4]
+    Data
+      - data/skenario.json : 3 kategori skenario (satu-satunya sumber soal)
+      - data/dummy_files/  : 18 file dummy aman untuk sha256sum / file / ls -l
+      - data/buat_dummy.py : pembuat file dummy (tugas Rohit)
+    Konfigurasi
+      - .env.example : ADMIN_RECOVERY_HASH, SECRET_KEY, COOKIE_SECURE, PROXY_COUNT
+      - docs/NGINX_KEAMANAN_ADMIN.md : panduan Nginx untuk Yazid
+
+[B] SEBAGIAN / PERLU DIPERBAIKI
+    1. tests/test_linux_utils.py GAGAL dijalankan
+       (python -m unittest tests.test_linux_utils -> 18 tes: 1 failure, 22 error).
+       Penyebab: tes memanggil core.linux_utils._is_linux, padahal fungsi itu tidak ada
+       di core/linux_utils.py versi sekarang. Tes & kode perlu disamakan lagi.
+    2. app.py masih punya POST /api/submit-score & /api/submit-feedback
+       (ditambahkan lagi di merge fa40158 untuk result.js Fardan). Ini BERTENTANGAN
+       dengan catatan migrasi [5] & SECURITY.md K-03 (skor dari browser bisa
+       dipalsukan). Sudah dibatasi: skor 0-100 kelipatan 5, kategori dihitung server,
+       maks. 5 kiriman / IP / 10 menit. Hapus lagi setelah result.js memakai
+       /api/session/<sid>/save & /feedback.
+    3. .gitignore belum memuat *.db, __pycache__/, data/exports/*.
+       Akibatnya __pycache__/ & core/__pycache__/ & tests/__pycache__/ ikut ter-commit.
+    4. Dua server berjalan paralel (app.py = CSV, backend/ = SQLite). Data keduanya
+       TIDAK sinkron. Perlu diputuskan mana yang dipakai saat deploy.
+
+[C] BELUM DIKERJAKAN
+    - README.md, CHANGELOG.md
+    - database/schema.sql      (sementara skema ada di SKEMA_BAWAAN, backend/app/db.py)
+    - scripts/                 (init_db.py & export_csv.py sudah digantikan otomatis;
+                                buat_dummy.py ada di data/)
+    - tests/test_scoring.py, test_sanitize.py, test_scenario.py, test_api.py
+    - deployment/nginx.conf, deployment/filemate.service
+
+[D] BEDA DENGAN RENCANA (sengaja, tidak perlu diubah kecuali mau dirapikan)
+    - Ada folder core/ & app.py di root (tidak ada di rencana awal).
+    - skenario.json, hasil.csv, feedback_user.csv ada langsung di data/,
+      bukan di data/scenarios/ & data/exports/.
+    - buat_dummy.py ada di data/, bukan di scripts/.
+    - .env.example berisi ADMIN_RECOVERY_HASH (bukan ADMIN_PIN).
