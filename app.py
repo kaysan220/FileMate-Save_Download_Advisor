@@ -7,14 +7,18 @@
 #   3. Buka browser di http://127.0.0.1:5000
 # =====================================================================
 import os
+import re
 import secrets
+import threading
+import time
 from datetime import timedelta
 from functools import wraps
 from flask import Flask, Response, jsonify, request, send_from_directory, redirect, session
 from core.algorithms import (
     SKENARIO_PATH, tulis_log, baca_leaderboard, tulis_feedback,
-    ringkasan_dashboard
+    ringkasan_dashboard, sensor_nama
 )
+from backend.app.scoring.calculator import kategori_risiko
 from core.linux_utils import jalankan_sha256sum_linux, jalankan_inspeksi_linux
 from core import admin_auth, admin_data
 from core.proxy import pasang_proxy_fix
@@ -178,9 +182,83 @@ def api_hash_file():
         return jsonify({"status": "error", "message": str(e)}), 400
 
 
-# Endpoint lama POST /api/submit-score & /api/submit-feedback DIHAPUS (16/11/2026):
-# keduanya menerima skor dari browser sehingga leaderboard/feedback bisa dipalsukan.
-# Penggantinya: POST /api/session/<sid>/save & /api/session/<sid>/feedback (skor dari server).
+# ---------------------------------------------------------------------
+# SIMPAN SKOR & FEEDBACK DARI FRONTEND (dipakai tampilan/js/result.js)
+# Frontend saat ini menghitung skor di browser (game.js) lalu mengirimnya ke
+# sini. Karena nilainya berasal dari klien (SECURITY.md K-03), server:
+#   - hanya menerima skor 0-100 kelipatan 5 (sesuai penalti -15/-5/-5),
+#   - menghitung kategori risiko sendiri (tidak percaya kiriman klien),
+#   - membatasi jumlah kiriman per IP (anti-spam leaderboard/feedback).
+# Alur yang lebih aman (skor dihitung server) tetap tersedia di /api/session/*.
+# ---------------------------------------------------------------------
+_POLA_WAKTU = re.compile(r"^\d{1,3}:[0-5]\d$")  # MM:SS dari result.js
+_BATAS_KIRIM = 5                 # kiriman maksimal per IP per jendela waktu
+_JENDELA_KIRIM_DETIK = 10 * 60   # jendela 10 menit
+_riwayat_kirim = {}              # (jenis, ip) -> [timestamp, ...]
+_kunci_kirim = threading.Lock()
+
+
+def _boleh_kirim(jenis):
+    """Rate limit sederhana di memori (hilang saat restart, cukup untuk 1 worker)."""
+    sekarang = time.monotonic()
+    kunci = (jenis, _ip())
+    with _kunci_kirim:
+        jejak = [t for t in _riwayat_kirim.get(kunci, []) if sekarang - t < _JENDELA_KIRIM_DETIK]
+        boleh = len(jejak) < _BATAS_KIRIM
+        if boleh:
+            jejak.append(sekarang)
+        _riwayat_kirim[kunci] = jejak
+        if len(_riwayat_kirim) > 5000:  # cegah dict tumbuh tanpa batas
+            for k in [k for k, v in _riwayat_kirim.items() if not v]:
+                del _riwayat_kirim[k]
+        return boleh
+
+
+def _skor_valid(nilai_skor):
+    if isinstance(nilai_skor, bool) or not isinstance(nilai_skor, int):
+        return None
+    if not (0 <= nilai_skor <= 100) or nilai_skor % 5 != 0:
+        return None
+    return nilai_skor
+
+
+def _tolak(pesan, status=400):
+    return jsonify({"status": "error", "message": pesan}), status
+
+
+@app.route("/api/submit-score", methods=["POST"])
+def api_submit_score():
+    """Body: {username, score, time}. Nama disensor & disimpan ke data/hasil.csv."""
+    body = _json_body()
+    skor = _skor_valid(body.get("score"))
+    waktu = str(body.get("time") or "")
+    if skor is None:
+        return _tolak("Skor tidak valid.")
+    if not _POLA_WAKTU.match(waktu):
+        return _tolak("Format waktu harus MM:SS.")
+    if not _boleh_kirim("skor"):
+        return _tolak("Terlalu banyak kiriman skor. Coba lagi nanti.", 429)
+    kategori = kategori_risiko(skor)
+    nama = tulis_log(body.get("username", ""), skor, waktu, kategori)
+    return _ok({"masked_name": nama, "score": skor, "time": waktu, "risk_category": kategori}, 201)
+
+
+@app.route("/api/submit-feedback", methods=["POST"])
+def api_submit_feedback():
+    """Body: {user, score, message}. Disimpan ke data/feedback_user.csv."""
+    body = _json_body()
+    skor = _skor_valid(body.get("score"))
+    pesan = str(body.get("message") or "").strip()
+    if skor is None:
+        return _tolak("Skor tidak valid.")
+    if not pesan:
+        return _tolak("Pesan masukan tidak boleh kosong.")
+    if not _boleh_kirim("feedback"):
+        return _tolak("Terlalu banyak kiriman masukan. Coba lagi nanti.", 429)
+    # sensor_nama idempoten untuk inisial "R****T"; nama asli juga ikut disensor
+    if not tulis_feedback(sensor_nama(body.get("user", "")), skor, pesan):
+        return _tolak("Pesan masukan tidak valid.")
+    return _ok({"saved": True}, 201)
 
 
 # =====================================================================

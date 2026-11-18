@@ -1,197 +1,137 @@
 /* =========================================================
-   FILEMATE RESULT.JS — Halaman hasil + simpan skor + feedback
-   (result.html)
-   Membutuhkan: common.js (escapeHTML, modal, toast)
-
-   SUDAH DIMIGRASI KE SERVER (backend/app/simulation/):
-   - Skor, kategori risiko, diagnosis & riwayat dari GET /api/session/<sid>/result
-   - Simpan ke leaderboard lewat POST /api/session/<sid>/save (skor dari server)
-   - Feedback lewat POST /api/session/<sid>/feedback (inisial & skor dari server)
-   Browser hanya menyimpan session id (filemate_session_id) dari game.js.
+   RESULT.JS — Otomatis Simpan Skor Agen & Evaluasi Akhir
    ========================================================= */
 
-let resultSessionId = null;
-let resultData = null;          // hasil dari server (hanya untuk ditampilkan)
 let currentMaskedUser = 'A****M';
-let resultRequestPending = false;
+let currentRawUser = 'Anonim';
+let finalSessionScore = 100;
+let finalSessionSecs = 60;
+let finalRiskCategory = 'RENDAH';
 
-// ---------- Request ke server ----------
-async function resultApi(method, path, body) {
-    let res;
-    try {
-        res = await fetch('/api/session/' + encodeURIComponent(resultSessionId) + path, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: body ? JSON.stringify(body) : undefined
+function confirmRestartSimulation(targetUrl = 'play.html') {
+    window.location.href = targetUrl;
+}
+
+async function autoRecordAgentScore() {
+    const alreadySaved = localStorage.getItem('filemate_session_saved') === 'true';
+    if (alreadySaved) return;
+
+    const timeStr = `${String(Math.floor(finalSessionSecs / 60)).padStart(2, '0')}:${String(finalSessionSecs % 60).padStart(2, '0')}`;
+    const defaultLb = [
+        { name: "R****T", score: 95, time: "01:12", risk: "RENDAH" },
+        { name: "F****N", score: 90, time: "01:28", risk: "RENDAH" },
+        { name: "K****N", score: 85, time: "01:45", risk: "RENDAH" },
+        { name: "Y****D", score: 75, time: "02:05", risk: "SEDANG" }
+    ];
+
+    let lb = JSON.parse(localStorage.getItem('filemate_leaderboard') || JSON.stringify(defaultLb));
+    lb.push({ name: currentMaskedUser, score: finalSessionScore, time: timeStr, risk: finalRiskCategory });
+    lb.sort((a, b) => b.score - a.score || a.time.localeCompare(b.time));
+    localStorage.setItem('filemate_leaderboard', JSON.stringify(lb));
+    localStorage.setItem('filemate_session_saved', 'true');
+
+    if (typeof apiFetchJSON === 'function') {
+        await apiFetchJSON('/api/submit-score', {
+            method: 'POST',
+            body: JSON.stringify({ username: currentRawUser, score: finalSessionScore, time: timeStr })
         });
-    } catch (e) {
-        const err = new Error('Server backend tidak aktif. Jalankan server Python terlebih dahulu.');
-        err.status = 0;
-        throw err;
-    }
-    let json = {};
-    try { json = await res.json(); } catch (e) { /* respons bukan JSON */ }
-    if (!res.ok) {
-        const err = new Error(json.message || ('HTTP ' + res.status));
-        err.status = res.status;
-        throw err;
-    }
-    return json.data;
-}
-
-function riskColor(category) {
-    if (category === 'TINGGI') return 'var(--danger)';
-    if (category === 'SEDANG') return 'var(--warning)';
-    return 'var(--safe)';
-}
-
-// Teks diagnosis = logika tampilan, berdasarkan hitungan kesalahan dari server
-function diagnosisText(mistakes) {
-    const m = mistakes || {};
-    if (m.SPOOFING > 0) return "Kamu masih rentan terkecoh oleh penyamaran ekstensi ganda atau file gambar (.jpg) yang memiliki header program eksekusi.";
-    if (m.HASH > 0) return "Kamu kurang teliti mencocokkan nilai integritas SHA-256 dengan checksum resmi developer.";
-    if (m.FATIGUE > 0) return "Kamu mengalami penurunan ketelitian (Awareness Fatigue) saat memeriksa 10 file sekaligus.";
-    return "Luar biasa! Kamu selalu memeriksa struktur ekstensi, magic bytes, dan checksum SHA-256 sebelum membuka file.";
-}
-
-function showResultUnavailable(message) {
-    document.getElementById('displayScore').textContent = '– / 100';
-    document.getElementById('riskCategoryBadge').innerHTML = '';
-    document.getElementById('diagnosisText').textContent = message;
-    document.getElementById('historyReviewList').innerHTML =
-        `<span style="font-size: 0.82rem; color: var(--text-muted);">Belum ada riwayat simulasi.</span>`;
-    setSaveFormLocked('Mainkan simulasi terlebih dahulu untuk menyimpan skor.');
-}
-
-// Mengunci input nama & tombol simpan (sudah tersimpan / hasil tidak tersedia)
-function setSaveFormLocked(placeholder) {
-    const input = document.getElementById('finalUsername');
-    const btn = document.querySelector('[onclick="saveScoreAndOpenFeedback()"]');
-    if (input) { input.disabled = true; input.value = ''; input.placeholder = placeholder; }
-    if (btn) btn.disabled = true;
-}
-
-function showResultError(message) {
-    if (typeof showToastNotification === 'function') {
-        showToastNotification(`<strong style="color: var(--danger);">⚠️ ${escapeHTML(message)}</strong>`);
-    } else {
-        alert(message);
     }
 }
 
-// ---------- Tampilkan hasil ----------
-async function initResultPage() {
-    if (!document.getElementById('displayScore')) return;
+function initResultPage() {
+    const scoreEl = document.getElementById('displayScore');
+    if (!scoreEl) return;
 
-    resultSessionId = localStorage.getItem('filemate_session_id');
-    if (!resultSessionId) {
-        showResultUnavailable('Belum ada hasil simulasi. Mainkan Lab Simulasi terlebih dahulu.');
-        return;
+    currentRawUser = localStorage.getItem('filemate_agent_raw') || 'Anonim';
+    currentMaskedUser = localStorage.getItem('filemate_agent_masked') || 'A****M';
+    finalSessionScore = parseInt(localStorage.getItem('filemate_final_score') || '100');
+    finalSessionSecs = parseInt(localStorage.getItem('filemate_seconds') || '60');
+    const mistakes = JSON.parse(localStorage.getItem('filemate_mistakes') || '{"SPOOFING":0,"HASH":0,"FATIGUE":0,"IMPULSIVE":0}');
+    const historyLog = JSON.parse(localStorage.getItem('filemate_history') || '[]');
+
+    const agentDisp = document.getElementById('savedAgentDisplay');
+    if (agentDisp) agentDisp.textContent = currentMaskedUser;
+
+    scoreEl.textContent = `${finalSessionScore} / 100`;
+    finalRiskCategory = finalSessionScore <= 50 ? 'TINGGI' : (finalSessionScore <= 80 ? 'SEDANG' : 'RENDAH');
+    const badgeColor = finalSessionScore <= 50 ? 'var(--danger)' : (finalSessionScore <= 80 ? 'var(--warning)' : 'var(--safe)');
+    document.getElementById('riskCategoryBadge').innerHTML = `Kategori Risiko Perilaku: <strong style="color: ${badgeColor};">${finalRiskCategory}</strong>`;
+
+    let diag = "Luar biasa! Kamu selalu memeriksa struktur ekstensi, magic bytes, dan checksum SHA-256 sebelum membuka file.";
+    if (mistakes.SPOOFING > 0) {
+        diag = "Kamu masih rentan terkecoh oleh penyamaran ekstensi ganda atau file gambar (.jpg) yang memiliki header program eksekusi.";
+    } else if (mistakes.HASH > 0) {
+        diag = "Kamu kurang teliti mencocokkan nilai integritas SHA-256 dengan checksum resmi developer.";
+    } else if (mistakes.FATIGUE > 0) {
+        diag = "Kamu mengalami penurunan ketelitian (Awareness Fatigue) saat memeriksa 10 file sekaligus.";
     }
-
-    try {
-        resultData = await resultApi('GET', '/result');
-    } catch (e) {
-        showResultUnavailable(e.message);
-        return;
-    }
-
-    document.getElementById('displayScore').textContent = `${Number(resultData.score) || 0} / 100`;
-    document.getElementById('riskCategoryBadge').innerHTML =
-        `Kategori Risiko Perilaku: <strong style="color: ${riskColor(resultData.risk_category)};">${escapeHTML(resultData.risk_category)}</strong>`;
-    document.getElementById('diagnosisText').textContent = diagnosisText(resultData.mistakes);
+    document.getElementById('diagnosisText').textContent = diag;
 
     const histContainer = document.getElementById('historyReviewList');
-    const historyLog = resultData.history || [];
     if (historyLog.length === 0) {
         histContainer.innerHTML = `<span style="font-size: 0.82rem; color: var(--text-muted);">Belum ada riwayat simulasi.</span>`;
     } else {
-        histContainer.innerHTML = historyLog.map(h => `
-            <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-subtle); border-radius: 6px; font-size: 0.82rem;">
-                <span class="mono">Kasus ${Number(h.stage) || 0}: <strong>${escapeHTML(h.file)}</strong></span>
-                <span style="color: ${h.correct ? 'var(--safe)' : 'var(--danger)'}; font-weight: 600;">${escapeHTML(h.note)}</span>
-            </div>
-        `).join('');
+        histContainer.innerHTML = '';
+        historyLog.forEach(h => {
+            histContainer.innerHTML += `
+                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-subtle); border-radius: 6px; font-size: 0.82rem;">
+                    <span class="mono">Kasus ${h.stage}: <strong>${escapeHTML(h.file)}</strong></span>
+                    <span style="color: ${h.correct ? 'var(--safe)' : 'var(--danger)'}; font-weight: 600;">${escapeHTML(h.note)}</span>
+                </div>
+            `;
+        });
     }
 
-    if (resultData.saved) {
-        currentMaskedUser = resultData.masked_name || currentMaskedUser;
-        setSaveFormLocked(`Skor sudah tersimpan sebagai ${currentMaskedUser}`);
-    }
+    autoRecordAgentScore();
 }
 
-// ---------- Simpan skor ke leaderboard (server) ----------
-async function saveScoreAndOpenFeedback() {
-    if (!resultData || resultRequestPending) return;
-    const username = document.getElementById('finalUsername').value.trim();
-
-    resultRequestPending = true;
-    let saved;
-    try {
-        saved = await resultApi('POST', '/save', { username });
-    } catch (e) {
-        resultRequestPending = false;
-        if (e.status === 409) {
-            setSaveFormLocked('Skor sesi ini sudah tersimpan');
-        }
-        showResultError(e.message);
-        return;
-    }
-    resultRequestPending = false;
-
-    currentMaskedUser = saved.masked_name;
-    resultData.saved = true;
-    setSaveFormLocked(`Skor sudah tersimpan sebagai ${currentMaskedUser}`);
-
-    if (resultData.feedback_sent) {
-        showToastNotification(`<strong style="color: var(--safe);">✅ Skor ${escapeHTML(currentMaskedUser)} tersimpan!</strong>`);
-        return;
-    }
-    openFeedbackForm(saved.score);
-}
-
-function openFeedbackForm(score) {
-    document.getElementById('modalTitle').innerHTML = `💬 Bantu Kami Lebih Baik! (Skor ${escapeHTML(currentMaskedUser)} Tersimpan)`;
+function openFeedbackModalManual() {
+    document.getElementById('modalTitle').innerHTML = `
+        <span style="display:inline-flex;align-items:center;gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Bantu Kami Lebih Baik! (Agen ${escapeHTML(currentMaskedUser)})
+        </span>
+    `;
     document.getElementById('modalContent').innerHTML = `
         <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 12px;">
-            Skormu (<strong>${Number(score) || 0} Pts</strong>) sudah tercatat di Papan Peringkat! Sebelum kembali ke beranda, boleh berikan <strong>saran atau masukanmu</strong> mengenai simulasi FileMate ini?
+            Skormu (<strong>${finalSessionScore} Pts</strong>) sudah tercatat di Papan Peringkat! Boleh berikan <strong>saran atau masukanmu</strong> mengenai simulasi FileMate ini?
         </p>
         <textarea id="userFeedbackInput" rows="4" maxlength="300" placeholder="Tulis saran atau masukanmu di sini (misal: tampilannya mudah dipahami, atau tambahkan variasi soal lain)..." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-subtle); color: var(--text-primary); font-family: inherit; font-size: 0.88rem; resize: vertical;"></textarea>
-        <div id="feedbackErrorMsg" style="color: var(--danger); font-size: 0.78rem; margin-top: 6px; min-height: 18px;"></div>
-        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
-            <button class="btn btn-ghost btn-sm" onclick="window.location.href='index.html'">Lewati</button>
-            <button class="btn btn-primary btn-sm" id="btnSendFeedback" onclick="submitUserFeedback()">🚀 Kirim Masukan &amp; Ke Beranda</button>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px;">
+            <button class="btn btn-ghost btn-sm" onclick="closeModal()">Tutup</button>
+            <button class="btn btn-primary btn-sm" onclick="submitUserFeedback()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Kirim Masukan &amp; Ke Beranda
+            </button>
         </div>
     `;
     document.getElementById('modalBackdrop').classList.add('open');
 }
 
-// ---------- Kirim feedback (server) ----------
 async function submitUserFeedback() {
-    if (resultRequestPending) return;
-    const message = document.getElementById('userFeedbackInput').value.trim();
-    if (!message) {
-        window.location.href = 'index.html'; // kosong = sama dengan "Lewati"
-        return;
-    }
+    const rawMsg = document.getElementById('userFeedbackInput').value.trim();
+    const cleanMsg = rawMsg.replace(/[<>]/g, '');
+    if (cleanMsg) {
+        const feedbacks = JSON.parse(localStorage.getItem('filemate_feedbacks') || '[]');
+        const now = new Date().toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
+        feedbacks.push({
+            user: currentMaskedUser,
+            score: finalSessionScore,
+            date: now,
+            message: cleanMsg
+        });
+        localStorage.setItem('filemate_feedbacks', JSON.stringify(feedbacks));
 
-    const btn = document.getElementById('btnSendFeedback');
-    const err = document.getElementById('feedbackErrorMsg');
-    resultRequestPending = true;
-    if (btn) btn.disabled = true;
-    try {
-        await resultApi('POST', '/feedback', { message });
-    } catch (e) {
-        resultRequestPending = false;
-        if (btn) btn.disabled = false;
-        if (e.status === 409) {
-            window.location.href = 'index.html'; // sudah pernah dikirim
-            return;
+        if (typeof apiFetchJSON === 'function') {
+            await apiFetchJSON('/api/submit-feedback', {
+                method: 'POST',
+                body: JSON.stringify({ user: currentMaskedUser, score: finalSessionScore, message: cleanMsg })
+            });
         }
-        if (err) err.textContent = e.message;
-        return;
     }
     window.location.href = 'index.html';
 }
 
-document.addEventListener('DOMContentLoaded', initResultPage);
+document.addEventListener('DOMContentLoaded', () => {
+    initResultPage();
+});

@@ -55,8 +55,8 @@ Didefinisikan di `backend/app/common/responses.py`.
 | GET    | `/api/admin/feedback?limit=<n>`      | admin        | admin |
 | GET    | `/api/admin/export/<scores|feedback>`| admin        | admin |
 | GET    | `/api/start-session` **[LAMA]**      | simulation   | –     |
-| POST   | `/api/submit-score` **[LAMA]**       | leaderboard  | –     |
-| POST   | `/api/submit-feedback` **[LAMA]**    | feedback     | –     |
+| POST   | `/api/submit-score` **[AKTIF – result.js]** | app.py | –  |
+| POST   | `/api/submit-feedback` **[AKTIF – result.js]** | app.py | – |
 
 ---
 
@@ -378,8 +378,8 @@ Dipertahankan agar halaman yang belum dimigrasi tetap jalan. **Rencana: dihapus 
 | Endpoint | Request | Respons | Masalah |
 |----------|---------|---------|---------|
 | `GET /api/start-session` | – | `{"1": skenario, "2": ..., "3": ...}` **lengkap dengan `isMalware`** | Kunci jawaban bocor ke browser |
-| `POST /api/submit-score` | `{username, time, score}` atau `{username, time, malware_opened, false_alarm, hints_used}` | `{"status":"ok","masked_name","score","risk_category"}` | Skor/hitungan berasal dari klien → bisa dipalsukan |
-| `POST /api/submit-feedback` | sama dengan `/api/feedback` | `{"status":"ok","saved":true}` | – (hanya format lama) |
+| `POST /api/submit-score` | `{username, score, time}` — `score` int 0–100 kelipatan 5, `time` `MM:SS` | `201 {"status":"ok","data":{masked_name, score, time, risk_category}}`; `400` input tidak valid; `429` >5 kiriman/IP/10 menit | Skor berasal dari klien → masih bisa dipalsukan dalam batas validasi (K-03) |
+| `POST /api/submit-feedback` | `{user, score, message}` — `user` disensor ulang di server | `201 {"status":"ok","data":{"saved":true}}`; `400`; `429` | Skor berasal dari klien (K-03) |
 
 ---
 

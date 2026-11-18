@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panduan Verifikasi File — FileMate</title>
-    <link rel="stylesheet" href="../tampilan/css/style.css">
-    <link rel="stylesheet" href="../tampilan/css/guide.css">
+    <link rel="stylesheet" href="../tampilan/css/base.css?v=5">
+    <link rel="stylesheet" href="../tampilan/css/components.css?v=5">
+    <link rel="stylesheet" href="../tampilan/css/pages.css?v=5">
 </head>
 <body>
 
@@ -15,100 +16,166 @@
             <img src="../image/filemate-light.png" alt="FileMate — Safe Download Advisor" class="logo-img logo-img-light">
         </a>
         <div class="nav-actions">
-            <a href="dashboard.html" class="btn btn-ghost btn-sm">🏠 Ikhtisar</a>
-            <a href="index.html" class="btn btn-ghost btn-sm">🔍 Pemeriksa File</a>
-            <a href="play.html" class="btn btn-ghost btn-sm">🎮 Lab Simulasi</a>
-            <a href="guide.html" class="btn btn-ghost btn-sm is-active" aria-current="page">📘 Panduan</a>
-            <button class="btn btn-ghost btn-sm" onclick="openTeamCredits()">🛡️ Tim Satgas</button>
-            <button class="btn btn-ghost btn-sm" id="themeToggle" onclick="toggleTheme()">☀️ Light</button>
+            <a href="index.html" class="btn btn-ghost btn-sm">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Scanner Beranda
+            </a>
+            <a href="play.html" class="btn btn-primary btn-sm">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Lab Simulasi
+            </a>
+            <button class="btn btn-ghost btn-sm" onclick="openTeamCredits()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Tim Satgas
+            </button>
+            <button class="btn btn-ghost btn-sm" id="themeToggle" onclick="toggleTheme()">Light</button>
         </div>
     </nav>
 
     <main class="container">
-        <div style="margin-bottom: 24px;">
-            <span style="font-size: 0.78rem; font-weight: 700; color: var(--accent); text-transform: uppercase;">Real-Life Security Guide &amp; CLI Playbook</span>
+        <div style="margin-bottom: 20px;">
+            <span style="font-size: 0.78rem; font-weight: 700; color: var(--accent); text-transform: uppercase;">Real-Life Security Guide &amp; Multi-OS Playbook</span>
             <h1 style="font-size: 1.75rem; margin-top: 4px;">Panduan Praktis Verifikasi Keamanan File</h1>
             <p style="color: var(--text-secondary); font-size: 0.94rem; margin-top: 6px;">
-                Pelajari perintah utilitas Linux, PowerShell Windows, serta cara membaca <em>output</em> terminal untuk membongkar penyamaran berkas berbahaya secara mandiri.
+                Panduan langkah demi langkah bagi pengguna awam maupun mahir di <strong>Windows</strong>, <strong>macOS</strong>, dan <strong>Linux</strong>—lengkap dengan cara visual tanpa koding (GUI) serta perintah terminal otomatis.
             </p>
         </div>
 
-        <!-- =========================================================
-             MODUL 1: EKSTENSI GANDA & MAGIC BYTES (TETAP UTUH + KOMPLEKS)
-             ========================================================= -->
+        <!-- PEMILIH SISTEM OPERASI GLOBAL (DEFAULT: WINDOWS) -->
+        <div class="os-switcher-bar" id="globalOsBar">
+            <div class="os-switcher-info">
+                <strong>Pilih Sistem Operasi Perangkatmu:</strong>
+                <span>Seluruh panduan &amp; perintah di bawah otomatis menyesuaikan pilihanmu</span>
+            </div>
+            <div class="os-tab-group">
+                <button type="button" class="os-tab-btn active" data-os="win" onclick="switchGuideOS('win')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7.5" height="7.5"/><rect x="13.5" y="3" width="7.5" height="7.5"/><rect x="3" y="13.5" width="7.5" height="7.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5"/></svg>
+                    Windows (Umum)
+                </button>
+                <button type="button" class="os-tab-btn" data-os="mac" onclick="switchGuideOS('mac')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"/><path d="M10 2c1 .5 2 2 2 5"/></svg>
+                    macOS
+                </button>
+                <button type="button" class="os-tab-btn" data-os="lin" onclick="switchGuideOS('lin')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Linux
+                </button>
+            </div>
+        </div>
+
+        <!-- MODUL 1 -->
         <div class="guide-card">
-            <h2 style="font-size: 1.2rem; color: var(--accent);">1. Mengatasi Ekstensi Ganda &amp; Memeriksa Magic Bytes</h2>
+            <h2 style="font-size: 1.2rem; color: var(--accent);">1. Membongkar Ekstensi Ganda &amp; Memeriksa Segel Biner (Magic Bytes)</h2>
             <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 6px;">
-                Jangan percaya begitu saja pada nama file di layar. Di Linux, gunakan perintah berikut untuk membongkar tipe MIME biner asli:
+                Jangan pernah percaya begitu saja pada ikon atau nama file di layar. File bernama <code>Dokumen_Penting.pdf</code> bisa saja sebenarnya adalah program <code>.exe</code> yang menyamar. Berikut cara memeriksa isi aslinya:
             </p>
 
-            <!-- Perintah 1A: file --mime-type (Utuh Sesuai Laporan) -->
-            <div class="cmd-box mono">
-                <div>
-                    <span class="cmd-prompt">$</span><span class="cmd-verb">file --mime-type</span> <span class="cmd-arg">Dokumen_Penting.pdf</span>
+            <div class="os-pane active" data-os-pane="win">
+                <div class="gui-friendly-box">
+                    <div class="gui-box-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--safe)" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+                        Cara Mudah Tanpa Koding (Windows Notepad / Properties):
+                    </div>
+                    <ol class="gui-step-list">
+                        <li><strong>Cek Tipe Asli:</strong> Klik kanan pada file &rarr; pilih <strong>Properties</strong>. Lihat baris <strong>Type of file</strong>. Jika tertulis <em>Application (.exe)</em> atau <em>VBScript</em> padahal ikonnya PDF, jangan dibuka!</li>
+                        <li><strong>Intip Segel Magic Bytes dengan Notepad:</strong> Klik kanan file &rarr; <strong>Open with</strong> &rarr; pilih <strong>Notepad</strong>. Lihat 2–4 huruf paling kiri di baris pertama: dokumen PDF asli selalu diawali huruf <code>%PDF</code>, sedangkan program/malware Windows diawali huruf <code>MZ</code>.</li>
+                    </ol>
                 </div>
-                <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('file --mime-type Dokumen_Penting.pdf', 'Dokumen_Penting.pdf')">Salin</button>
-            </div>
-            <div class="cmd-hint">Ket: <code>file --mime-type</code> adalah perintah utama, ganti <code>Dokumen_Penting.pdf</code> dengan nama file yang ingin diperiksa.</div>
 
-            <div class="output-grid">
-                <div class="terminal-out-box safe-out">
-                    <span class="out-label">✅ Contoh Output Jika File PDF Asli:</span>
-                    Dokumen_Penting.pdf: application/pdf
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Cara Cepat Lewat Windows PowerShell (Membaca 16 Byte Pertama / Hex):
                 </div>
-                <div class="terminal-out-box danger-out">
-                    <span class="out-label">🚨 Contoh Output Jika Menyamar (Berisi .EXE):</span>
-                    Dokumen_Penting.pdf: application/x-dosexec
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">PS&gt;</span><span class="cmd-verb">Format-Hex -Path</span> <span class="cmd-arg">.\Dokumen_Penting.pdf</span> <span class="cmd-verb">| Select-Object -First 1</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('Format-Hex -Path .\\Dokumen_Penting.pdf | Select-Object -First 1', '.\\Dokumen_Penting.pdf')">Salin</button>
                 </div>
-            </div>
+                <div class="cmd-hint">Ket: Buka PowerShell di folder Downloads (Klik kanan di area kosong folder &rarr; <em>Open in Terminal</em>), lalu tempel perintah di atas.</div>
 
-            <!-- Perintah 1B: Melihat Hex & Karakter ASCII Persis Seperti di Tabel Kamus -->
-            <div class="sub-section-title">🔬 Perintah Lanjutan: Membaca Kode Hex &amp; ASCII (Magic Bytes) Secara Langsung</div>
-            <p style="font-size: 0.86rem; color: var(--text-secondary);">
-                Ingin membuktikan langsung isi byte pertama file seperti pada tabel kamus di bawah? Gunakan perintah <code>xxd</code> atau <code>hexdump</code> berikut untuk menampilkan **8 byte pertama** dalam format **Hex** sekaligus **Karakter ASCII**-nya:
-            </p>
-
-            <div class="cmd-box mono">
-                <div>
-                    <span class="cmd-prompt">$</span><span class="cmd-verb">xxd -g 1 -l 8</span> <span class="cmd-arg">Dokumen_Penting.pdf</span>
-                </div>
-                <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('xxd -g 1 -l 8 Dokumen_Penting.pdf', 'Dokumen_Penting.pdf')">Salin</button>
-            </div>
-            <div class="cmd-hint">Ket: Opsi <code>-g 1</code> memisahkan tiap 1 byte Hex, dan <code>-l 8</code> membatasi pembacaan hanya pada 8 byte pembuka (header). Alternatif jika tidak ada xxd: <code>hexdump -C -n 8 namafile</code>.</div>
-
-            <div class="output-grid">
-                <div class="terminal-out-box safe-out">
-                    <span class="out-label">✅ Output Hex &amp; ASCII Dokumen PDF Asli:</span>
-                    00000000: <strong>25 50 44 46</strong> 2d 31 2e 37  <strong>%PDF</strong>-1.7
-                </div>
-                <div class="terminal-out-box danger-out">
-                    <span class="out-label">🚨 Output Hex &amp; ASCII Malware Menyamar Jadi PDF:</span>
-                    00000000: <strong>4d 5a</strong> 90 00 03 00 00 00  <strong>MZ</strong>......
+                <div class="output-grid">
+                    <div class="terminal-out-box safe-out">
+                        <span class="out-label">Contoh Output Jika Dokumen PDF Asli (Diawali 25 50 44 46 / %PDF):</span>
+                        00000000   <strong>25 50 44 46</strong> 2D 31 2E 37  <strong>%PDF</strong>-1.7
+                    </div>
+                    <div class="terminal-out-box danger-out">
+                        <span class="out-label">Contoh Output Jika Berisi Program .EXE (Diawali 4D 5A / MZ):</span>
+                        00000000   <strong>4D 5A</strong> 90 00 03 00 00 00  <strong>MZ</strong>......
+                    </div>
                 </div>
             </div>
 
-            <!-- Perintah 1C: Versi Windows PowerShell untuk Cek Magic Bytes -->
-            <div class="sub-section-title">🪟 Alternatif di Windows PowerShell (Tanpa Install Aplikasi Tambahan):</div>
-            <div class="cmd-box mono">
-                <div>
-                    <span class="cmd-prompt">PS&gt;</span><span class="cmd-verb">Format-Hex -Path</span> <span class="cmd-arg">.\Dokumen_Penting.pdf</span> <span class="cmd-verb">| Select-Object -First 1</span>
+            <div class="os-pane" data-os-pane="mac">
+                <div class="gui-friendly-box">
+                    <div class="gui-box-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--safe)" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+                        Cara Mudah Tanpa Koding (macOS Finder Get Info):
+                    </div>
+                    <ol class="gui-step-list">
+                        <li>Klik sekali pada file di Finder, lalu tekan tombol <code>Cmd + I</code> (atau Klik Kanan &rarr; <strong>Get Info</strong>).</li>
+                        <li>Perhatikan bagian <strong>Kind</strong> (Jenis) dan <strong>Name &amp; Extension</strong>. Jika tertulis <em>Unix Executable</em>, <em>Application</em>, atau <em>Terminal Script</em> padahal namanya dokumen PDF, segera hapus file tersebut.</li>
+                    </ol>
                 </div>
-                <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('Format-Hex -Path .\\Dokumen_Penting.pdf | Select-Object -First 1', '.\\Dokumen_Penting.pdf')">Salin</button>
+
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Perintah Terminal macOS (Cek Tipe MIME &amp; Magic Bytes):
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">%</span><span class="cmd-verb">file -I</span> <span class="cmd-arg">Dokumen_Penting.pdf</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('file -I Dokumen_Penting.pdf', 'Dokumen_Penting.pdf')">Salin</button>
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">%</span><span class="cmd-verb">xxd -g 1 -l 8</span> <span class="cmd-arg">Dokumen_Penting.pdf</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('xxd -g 1 -l 8 Dokumen_Penting.pdf', 'Dokumen_Penting.pdf')">Salin</button>
+                </div>
             </div>
-            <div class="terminal-out-box" style="margin-bottom: 16px;">
-                <span class="out-label">💻 Contoh Output PowerShell Format-Hex:</span>
-                00000000   <strong>25 50 44 46</strong> 2D 31 2E 37 0A 25 D0 D4 C5 D8 0A 31  <strong>%PDF</strong>-1.7.%ÔÄÅØ.1
+
+            <div class="os-pane" data-os-pane="lin">
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Perintah Terminal Linux (Membongkar Tipe MIME &amp; 8 Byte Pertama):
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">$</span><span class="cmd-verb">file --mime-type</span> <span class="cmd-arg">Dokumen_Penting.pdf</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('file --mime-type Dokumen_Penting.pdf', 'Dokumen_Penting.pdf')">Salin</button>
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">$</span><span class="cmd-verb">xxd -g 1 -l 8</span> <span class="cmd-arg">Dokumen_Penting.pdf</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('xxd -g 1 -l 8 Dokumen_Penting.pdf', 'Dokumen_Penting.pdf')">Salin</button>
+                </div>
+                <div class="output-grid">
+                    <div class="terminal-out-box safe-out">
+                        <span class="out-label">Contoh Output Jika File PDF Asli:</span>
+                        Dokumen_Penting.pdf: application/pdf<br>
+                        00000000: <strong>25 50 44 46</strong> 2d 31 2e 37  <strong>%PDF</strong>-1.7
+                    </div>
+                    <div class="terminal-out-box danger-out">
+                        <span class="out-label">Contoh Output Jika Menyamar (Berisi .EXE):</span>
+                        Dokumen_Penting.pdf: application/x-dosexec<br>
+                        00000000: <strong>4d 5a</strong> 90 00 03 00 00 00  <strong>MZ</strong>......
+                    </div>
+                </div>
             </div>
 
             <p style="font-size: 0.86rem; color: var(--text-secondary); margin-top: 14px;">
-                <strong>Kamus Cepat Segel Biner (Magic Bytes Header):</strong> Cocokkan hasil <code>xxd</code> atau <code>Format-Hex</code> di atas dengan tabel referensi berikut:
+                <strong>Kamus Cepat Segel Biner (Magic Bytes Header — Berlaku di Semua OS):</strong>
             </p>
             <table class="magic-table">
                 <thead>
                     <tr>
                         <th>Ekstensi File</th>
                         <th>Kode Hex (Magic Bytes)</th>
-                        <th>Karakter ASCII</th>
+                        <th>Karakter Awal (ASCII)</th>
                         <th>Status &amp; Keterangan</th>
                     </tr>
                 </thead>
@@ -138,16 +205,10 @@
                         <td><span style="color: var(--safe); font-weight: 600;">Arsip ZIP / Dokumen Office Modern</span></td>
                     </tr>
                     <tr>
-                        <td class="mono">.msi / .doc / .xls</td>
-                        <td class="mono">D0 CF 11 E0</td>
-                        <td class="mono">ÐÏ.à</td>
-                        <td><span style="color: var(--warning); font-weight: 600;">Paket Installer MSI / Office Lawas (OLE2)</span></td>
-                    </tr>
-                    <tr>
                         <td class="mono">.exe / .dll / .scr</td>
                         <td class="mono">4D 5A</td>
                         <td class="mono">MZ</td>
-                        <td><span style="color: var(--danger); font-weight: 600;">Program Eksekusi Windows (Waspada jika menyamar!)</span></td>
+                        <td><span style="color: var(--danger); font-weight: 600;">Program Eksekusi Windows (Bahaya jika menyamar!)</span></td>
                     </tr>
                     <tr>
                         <td class="mono">ELF Binary (Linux)</td>
@@ -159,211 +220,411 @@
             </table>
         </div>
 
-        <!-- =========================================================
-             MODUL 2: CHECKSUM SHA-256 (TETAP UTUH + KOMPLEKS)
-             ========================================================= -->
+        <!-- MODUL 2 -->
         <div class="guide-card">
-            <h2 style="font-size: 1.2rem; color: var(--accent);">2. Pemeriksaan Integritas Checksum SHA-256</h2>
+            <h2 style="font-size: 1.2rem; color: var(--accent);">2. Memastikan Keaslian File Unduhan dengan Sidik Jari SHA-256</h2>
             <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 6px;">
-                Validasi keaslian file unduhan dari internet dengan membandingkan nilai sidik jari digital SHA-256:
+                Saat mengunduh installer atau tugas penting, peretas bisa saja menyisipkan trojan tanpa mengubah nama dan ukuran file. Pastikan kode <strong>SHA-256</strong> file tersebut 100% cocok dengan kode resmi dari pengirimnya:
             </p>
 
-            <!-- Perintah 2A: sha256sum (Utuh Sesuai Laporan) -->
-            <div class="cmd-box mono">
-                <div>
-                    <span class="cmd-prompt">$</span><span class="cmd-verb">sha256sum</span> <span class="cmd-arg">Patch_Update_v2.zip</span>
+            <div class="os-pane active" data-os-pane="win">
+                <div class="gui-friendly-box">
+                    <div class="gui-box-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--safe)" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+                        Cara Paling Mudah Tanpa Ketik Perintah (Drag &amp; Drop):
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                        Buka menu <strong>Scanner Beranda FileMate</strong> di web ini, seret file dari Windows Explorer ke kotak pemeriksaan, lalu tempel kode SHA-256 resmi untuk langsung melihat hasil pencocokan segelnya secara visual!
+                    </p>
                 </div>
-                <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('sha256sum Patch_Update_v2.zip', 'Patch_Update_v2.zip')">Salin</button>
-            </div>
-            <div class="cmd-hint">Ket: <code>sha256sum</code> adalah perintah utama, ganti <code>Patch_Update_v2.zip</code> dengan nama file unduhanmu.</div>
 
-            <div class="terminal-out-box" style="margin-bottom: 14px;">
-                <span class="out-label">💻 Contoh Output Terminal Linux (64 Karakter Hexadecimal):</span>
-                e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  Patch_Update_v2.zip
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Cara 1: Lewat Command Prompt (CMD) Bawaan Windows (`certutil`):
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">C:\&gt;</span><span class="cmd-verb">certutil -hashfile</span> <span class="cmd-arg">.\Patch_Update_v2.zip</span> <span class="cmd-verb">SHA256</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('certutil -hashfile .\\Patch_Update_v2.zip SHA256', '.\\Patch_Update_v2.zip')">Salin</button>
+                </div>
+
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    Cara 2: Lewat Windows PowerShell (`Get-FileHash`):
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">PS&gt;</span><span class="cmd-verb">Get-FileHash</span> <span class="cmd-arg">.\Patch_Update_v2.zip</span> <span class="cmd-verb">-Algorithm SHA256</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('Get-FileHash .\\Patch_Update_v2.zip -Algorithm SHA256', '.\\Patch_Update_v2.zip')">Salin</button>
+                </div>
+                <div class="terminal-out-box">
+                    <span class="out-label">Contoh Output PowerShell:</span>
+                    Algorithm       Hash                                                                   Path<br>
+                    ---------       ----                                                                   ----<br>
+                    SHA256          E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855       C:\Downloads\Patch_Update_v2.zip
+                </div>
             </div>
 
-            <!-- Perintah 2B: Verifikasi Otomatis Tanpa Baca Manual Mata -->
-            <div class="sub-section-title">⚡ Trik Cepat Linux: Bandingkan Hash Otomatis Tanpa Cek Satu-Satu</div>
-            <p style="font-size: 0.86rem; color: var(--text-secondary);">
-                Malas mencocokkan 64 karakter dengan mata telanjang? Gunakan perintah <code>echo</code> yang digabung dengan <code>sha256sum -c</code> untuk menyuruh Linux memvalidasi kecocokannya secara otomatis:
+            <div class="os-pane" data-os-pane="mac">
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Perintah Cek SHA-256 di Terminal macOS (`shasum -a 256`):
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">%</span><span class="cmd-verb">shasum -a 256</span> <span class="cmd-arg">Patch_Update_v2.zip</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('shasum -a 256 Patch_Update_v2.zip', 'Patch_Update_v2.zip')">Salin</button>
+                </div>
+                <div class="terminal-out-box">
+                    <span class="out-label">Contoh Output Terminal macOS:</span>
+                    e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  Patch_Update_v2.zip
+                </div>
+            </div>
+
+            <div class="os-pane" data-os-pane="lin">
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Perintah Cek &amp; Validasi Otomatis SHA-256 di Linux (`sha256sum`):
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">$</span><span class="cmd-verb">sha256sum</span> <span class="cmd-arg">Patch_Update_v2.zip</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('sha256sum Patch_Update_v2.zip', 'Patch_Update_v2.zip')">Salin</button>
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">$</span><span class="cmd-verb">echo "</span><span class="cmd-arg">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  Patch_Update_v2.zip</span><span class="cmd-verb">" | sha256sum -c -</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('echo &quot;e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  Patch_Update_v2.zip&quot; | sha256sum -c -', 'Patch_Update_v2.zip')">Salin</button>
+                </div>
+                <div class="output-grid">
+                    <div class="terminal-out-box safe-out">
+                        <span class="out-label">Output Jika Hash 100% Cocok (Asli):</span>
+                        Patch_Update_v2.zip: <strong>OK</strong>
+                    </div>
+                    <div class="terminal-out-box danger-out">
+                        <span class="out-label">Output Jika File Sudah Dimodifikasi:</span>
+                        Patch_Update_v2.zip: <strong>FAILED</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODUL 3 -->
+        <div class="guide-card">
+            <h2 style="font-size: 1.2rem; color: var(--accent);">3. Pengaturan Wajib Agar Ekstensi Ganda (.pdf.exe) Selalu Terlihat</h2>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 6px;">
+                Secara bawaan, Windows dan macOS sering menyembunyikan akhiran nama file sehingga <code>Kontrak_Magang.pdf.exe</code> hanya terlihat sebagai <code>Kontrak_Magang.pdf</code>. Aktifkan pengaturan ini sekarang juga:
             </p>
-            <div class="cmd-box mono">
-                <div>
-                    <span class="cmd-prompt">$</span><span class="cmd-verb">echo "</span><span class="cmd-arg">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  Patch_Update_v2.zip</span><span class="cmd-verb">" | sha256sum -c -</span>
+
+            <div class="os-pane active" data-os-pane="win">
+                <div class="gui-friendly-box">
+                    <div class="gui-box-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--safe)" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+                        Cara Klik di File Explorer Windows 10 &amp; Windows 11:
+                    </div>
+                    <ul class="gui-step-list">
+                        <li><strong>Windows 11:</strong> Buka <em>File Explorer</em> &rarr; Klik menu <strong>View</strong> di bar atas &rarr; Arahkan ke <strong>Show</strong> &rarr; Centang <strong>File name extensions</strong> dan <strong>Hidden items</strong>.</li>
+                        <li><strong>Windows 10:</strong> Buka <em>File Explorer</em> &rarr; Klik tab <strong>View</strong> di bagian atas &rarr; Langsung centang kotak <strong>File name extensions</strong>.</li>
+                    </ul>
                 </div>
-                <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('echo &quot;e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  Patch_Update_v2.zip&quot; | sha256sum -c -', 'Patch_Update_v2.zip')">Salin</button>
-            </div>
-            <div class="output-grid">
-                <div class="terminal-out-box safe-out">
-                    <span class="out-label">✅ Output Jika Hash 100% Cocok (Asli):</span>
-                    Patch_Update_v2.zip: <strong>OK</strong>
+
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    Trik 1-Klik PowerShell: Lacak Semua File Berekstensi Ganda di Folder Downloads:
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">PS&gt;</span><span class="cmd-verb">Get-ChildItem -File | Where-Object { $_.Name -match '\..+\.(exe|vbs|bat|scr|cmd|ps1)$' }</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('Get-ChildItem -File | Where-Object { $_.Name -match \'\\..+\\.(exe|vbs|bat|scr|cmd|ps1)$\' }', null)">Salin</button>
                 </div>
                 <div class="terminal-out-box danger-out">
-                    <span class="out-label">🚨 Output Jika File Sudah Dimodifikasi/Trojan:</span>
-                    Patch_Update_v2.zip: <strong>FAILED</strong><br>
-                    sha256sum: WARNING: 1 computed checksum did NOT match
+                    <span class="out-label">Contoh Output Jika Ditemukan Jebakan Ekstensi Ganda di Folder:</span>
+                    -a----        04/11/2026     13:10        1945600 <strong>Kontrak_Magang_2026.pdf.exe</strong><br>
+                    -a----        04/11/2026     13:12          28672 <strong>Form_Pengajuan_Beasiswa.docx.vbs</strong>
                 </div>
             </div>
 
-            <!-- Perintah 2C: Windows PowerShell -->
-            <div class="sub-section-title">🪟 Perintah Cek SHA-256 di Windows PowerShell:</div>
-            <div class="cmd-box mono">
-                <div>
-                    <span class="cmd-prompt">PS&gt;</span><span class="cmd-verb">Get-FileHash</span> <span class="cmd-arg">.\Patch_Update_v2.zip</span> <span class="cmd-verb">-Algorithm SHA256</span>
+            <div class="os-pane" data-os-pane="mac">
+                <div class="gui-friendly-box">
+                    <div class="gui-box-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--safe)" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+                        Cara Menampilkan Semua Ekstensi di macOS Finder:
+                    </div>
+                    <ol class="gui-step-list">
+                        <li>Buka <strong>Finder</strong>, lalu klik menu <strong>Finder &rarr; Settings</strong> (atau tekan <code>Cmd + ,</code>).</li>
+                        <li>Pilih tab <strong>Advanced</strong> (Lanjutan) di paling kanan, lalu centang <strong>"Show all filename extensions"</strong>.</li>
+                    </ol>
                 </div>
-                <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('Get-FileHash .\\Patch_Update_v2.zip -Algorithm SHA256', '.\\Patch_Update_v2.zip')">Salin</button>
+
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Perintah Terminal macOS untuk Mengaktifkan Tampilan Ekstensi Otomatis:
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">%</span><span class="cmd-verb">defaults write NSGlobalDomain AppleShowAllExtensions -bool true &amp;&amp; killall Finder</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('defaults write NSGlobalDomain AppleShowAllExtensions -bool true && killall Finder', null)">Salin</button>
+                </div>
             </div>
-            <div class="terminal-out-box">
-                <span class="out-label">💻 Contoh Output PowerShell:</span>
-                Algorithm       Hash                                                                   Path<br>
-                ---------       ----                                                                   ----<br>
-                SHA256          E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855       C:\Downloads\Patch_Update_v2.zip
+
+            <div class="os-pane" data-os-pane="lin">
+                <div class="gui-friendly-box">
+                    <div class="gui-box-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--safe)" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+                        Tips File Manager Linux (GNOME Files / Dolphin / Thunar):
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                        Linux selalu menampilkan ekstensi file secara utuh, namun peretas sering menyembunyikan script dengan awalan titik (<em>dotfile</em> seperti <code>.update_miner.sh</code>). Tekan <code>Ctrl + H</code> di File Manager atau jalankan perintah di bawah untuk melihat seluruh file tersembunyi:
+                    </p>
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">$</span><span class="cmd-verb">ls -la</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('ls -la', null)">Salin</button>
+                </div>
             </div>
         </div>
 
-        <!-- =========================================================
-             MODUL 3: FILE PERMISSION LINUX (TETAP UTUH + KOMPLEKS)
-             ========================================================= -->
+        <!-- MODUL 4 -->
         <div class="guide-card">
-            <h2 style="font-size: 1.2rem; color: var(--accent);">3. Manajemen Hak Akses Linux (Permission Check)</h2>
+            <h2 style="font-size: 1.2rem; color: var(--accent);">4. Mengunci Izin Eksekusi File &amp; Menyapu Flashdisk Teman</h2>
             <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 6px;">
-                Cabut izin eksekusi yang tidak wajar pada dokumen pasif menggunakan perintah <code>chmod</code>:
+                Dokumen biasa (PDF, Word, Gambar) tidak pernah membutuhkan izin untuk berjalan sebagai program (<em>Executable</em>). Berikut cara melucuti izin eksekusi berbahaya dan memeriksa banyak file sekaligus:
             </p>
 
-            <!-- Perintah 3A: chmod -x (Utuh Sesuai Laporan) -->
-            <div class="cmd-box mono">
-                <div>
-                    <span class="cmd-prompt">$</span><span class="cmd-verb">chmod -x</span> <span class="cmd-arg">file_mencurigakan.pdf</span>
+            <div class="os-pane active" data-os-pane="win">
+                <div class="gui-friendly-box">
+                    <div class="gui-box-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--safe)" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+                        Cara Cek Pengaman "Mark of the Web" di Windows Properties:
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                        Klik kanan file unduhan &rarr; <strong>Properties</strong>. Di bagian paling bawah tab <em>General</em>, jika muncul peringatan <strong>"Security: This file came from another computer and might be blocked"</strong>, <strong>JANGAN centang Unblock</strong> sebelum kamu yakin 100% file itu aman!
+                    </p>
                 </div>
-                <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('chmod -x file_mencurigakan.pdf', 'file_mencurigakan.pdf')">Salin</button>
-            </div>
-            <div class="cmd-hint">Ket: <code>chmod -x</code> mencabut atribut eksekusi (<code>x</code>) sehingga file tidak bisa berjalan sebagai program.</div>
 
-            <!-- Perintah 3B: Melihat Izin File dengan ls -lh -->
-            <div class="sub-section-title">🔍 Memeriksa Status Permission Sebelum &amp; Sesudah dengan <code>ls -lh</code>:</div>
-            <div class="cmd-box mono">
-                <div>
-                    <span class="cmd-prompt">$</span><span class="cmd-verb">ls -lh</span> <span class="cmd-arg">file_mencurigakan.pdf</span>
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Perintah Windows (`icacls`): Kunci File Mencurigakan Menjadi Read-Only (Cegah Eksekusi):
                 </div>
-                <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('ls -lh file_mencurigakan.pdf', 'file_mencurigakan.pdf')">Salin</button>
-            </div>
-            <div class="output-grid">
-                <div class="terminal-out-box danger-out">
-                    <span class="out-label">🚨 Sebelum (Berbahaya - Ada Huruf 'x'):</span>
-                    <strong>-rwxr-xr-x</strong> 1 mhs mhs 1.9M Nov 4 09:15 file_mencurigakan.pdf
-                </div>
-                <div class="terminal-out-box safe-out">
-                    <span class="out-label">✅ Sesudah <code>chmod -x</code> (Aman - Pasif):</span>
-                    <strong>-rw-r--r--</strong> 1 mhs mhs 1.9M Nov 4 09:15 file_mencurigakan.pdf
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">PS&gt;</span><span class="cmd-verb">icacls</span> <span class="cmd-arg">.\file_mencurigakan.pdf</span> <span class="cmd-verb">/inheritance:r /grant:r "$($env:USERNAME):(R)"</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('icacls .\\file_mencurigakan.pdf /inheritance:r /grant:r &quot;$($env:USERNAME):(R)&quot;', '.\\file_mencurigakan.pdf')">Salin</button>
                 </div>
             </div>
 
-            <!-- Perintah 3C: Awareness Fatigue Find -->
-            <div class="sub-section-title">⚡ Mengatasi Awareness Fatigue (Sapu Bersih Banyak File di Flashdisk):</div>
-            <p style="font-size: 0.86rem; color: var(--text-secondary);">
-                Saat menghadapi puluhan file di flashdisk teman, jangan periksa manual satu per satu. Gunakan perintah <code>find</code> berikut untuk langsung mendeteksi berkas mana saja yang diam-diam memiliki izin eksekusi program:
-            </p>
-            <div class="cmd-box mono">
-                <div>
-                    <span class="cmd-prompt">$</span><span class="cmd-verb">find . -maxdepth 1 -type f -executable</span>
+            <div class="os-pane" data-os-pane="mac">
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Cabut Izin Eksekusi &amp; Cek Karantina Gatekeeper di macOS:
                 </div>
-                <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('find . -maxdepth 1 -type f -executable', null)">Salin</button>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">%</span><span class="cmd-verb">chmod -x</span> <span class="cmd-arg">file_mencurigakan.pdf</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('chmod -x file_mencurigakan.pdf', 'file_mencurigakan.pdf')">Salin</button>
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">%</span><span class="cmd-verb">find . -maxdepth 1 -type f -perm +111</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('find . -maxdepth 1 -type f -perm +111', null)">Salin</button>
+                </div>
+                <div class="cmd-hint">Ket: Perintah kedua langsung mendeteksi semua file di dalam folder/flashdisk yang diam-diam memiliki izin eksekusi program di macOS.</div>
             </div>
-            <div class="terminal-out-box danger-out">
-                <span class="out-label">🚨 Contoh Output (Langsung Menangkap 3 File Jebakan di Tengah Tumpukan):</span>
-                ./Data_Kuisioner_User.xlsx.vbs<br>
-                ./Poster_Kegiatan_Kampus.jpg<br>
-                ./Invoice_Sewa_Hosting.pdf.exe
+
+            <div class="os-pane" data-os-pane="lin">
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Cabut Izin Eksekusi (`chmod -x`) &amp; Sapu Bersih Flashdisk (`find -executable`) di Linux:
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">$</span><span class="cmd-verb">chmod -x</span> <span class="cmd-arg">file_mencurigakan.pdf</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('chmod -x file_mencurigakan.pdf', 'file_mencurigakan.pdf')">Salin</button>
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">$</span><span class="cmd-verb">ls -lh</span> <span class="cmd-arg">file_mencurigakan.pdf</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('ls -lh file_mencurigakan.pdf', 'file_mencurigakan.pdf')">Salin</button>
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">$</span><span class="cmd-verb">find . -maxdepth 1 -type f -executable</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('find . -maxdepth 1 -type f -executable', null)">Salin</button>
+                </div>
+                <div class="output-grid">
+                    <div class="terminal-out-box danger-out">
+                        <span class="out-label">Sebelum (Berbahaya - Ada Huruf 'x'):</span>
+                        <strong>-rwxr-xr-x</strong> 1 mhs mhs 1.9M Nov 4 09:15 file_mencurigakan.pdf
+                    </div>
+                    <div class="terminal-out-box safe-out">
+                        <span class="out-label">Sesudah chmod -x (Aman - Pasif):</span>
+                        <strong>-rw-r--r--</strong> 1 mhs mhs 1.9M Nov 4 09:15 file_mencurigakan.pdf
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- =========================================================
-             MODUL 4: PENGATURAN WAJIB WINDOWS EXPLORER & CMD
-             ========================================================= -->
+        <!-- MODUL 5 -->
         <div class="guide-card">
-            <h2 style="font-size: 1.2rem; color: var(--accent);">4. Menampilkan Ekstensi Asli &amp; Audit Cepat di Windows</h2>
+            <h2 style="font-size: 1.2rem; color: var(--accent);">5. Mengintip Teks/Script Tersembunyi di Dalam File &amp; Privasi VirusTotal</h2>
             <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 6px;">
-                Secara bawaan (<em>default</em>), Windows menyembunyikan ekstensi file yang sudah dikenal sehingga <code>Kontrak_Magang.pdf.exe</code> hanya terlihat sebagai <code>Kontrak_Magang.pdf</code>. Buka kedoknya lewat pengaturan GUI atau perintah PowerShell berikut:
+                Penyerang sering menyisipkan perintah <code>powershell</code>, URL pencuri data, atau skrip berbahaya di dalam file gambar/dokumen. Kamu bisa mendeteksinya tanpa membuka file tersebut:
             </p>
-            <ul style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 10px; padding-left: 20px; line-height: 1.7;">
-                <li><strong>Windows 11:</strong> Buka <em>File Explorer</em> &rarr; Klik menu <strong>View</strong> di atas &rarr; Pilih <strong>Show</strong> &rarr; Centang <strong>File name extensions</strong> dan <strong>Hidden items</strong>.</li>
-                <li><strong>Windows 10:</strong> Buka <em>File Explorer</em> &rarr; Klik tab <strong>View</strong> &rarr; Centang kotak <strong>File name extensions</strong>.</li>
-            </ul>
 
-            <div class="sub-section-title">🪟 Perintah PowerShell untuk Melacak File Berekstensi Ganda di Folder Downloads:</div>
-            <div class="cmd-box mono">
-                <div>
-                    <span class="cmd-prompt">PS&gt;</span><span class="cmd-verb">Get-ChildItem -File | Where-Object { $_.Name -match '\..+\.(exe|vbs|bat|scr|cmd|ps1)$' }</span>
+            <div class="os-pane active" data-os-pane="win">
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Perintah Bawaan Windows PowerShell (`Select-String` — Pengganti Strings/Grep):
                 </div>
-                <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('Get-ChildItem -File | Where-Object { $_.Name -match \'\\..+\\.(exe|vbs|bat|scr|cmd|ps1)$\' }', null)">Salin</button>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">PS&gt;</span><span class="cmd-verb">Select-String -Path</span> <span class="cmd-arg">.\Denah_Ruangan_Kantor.jpg</span> <span class="cmd-verb">-Pattern "http|powershell|cmd|\.exe|eval"</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('Select-String -Path .\\Denah_Ruangan_Kantor.jpg -Pattern &quot;http|powershell|cmd|\\.exe|eval&quot;', '.\\Denah_Ruangan_Kantor.jpg')">Salin</button>
+                </div>
             </div>
-            <div class="terminal-out-box danger-out">
-                <span class="out-label">🚨 Contoh Output PowerShell (Mendeteksi File Berekstensi Ganda):</span>
-                Mode                 LastWriteTime         Length Name<br>
-                ----                 -------------         ------ ----<br>
-                -a----        04/11/2026     13:10        1945600 <strong>Kontrak_Magang_2026.pdf.exe</strong><br>
-                -a----        04/11/2026     13:12          28672 <strong>Form_Pengajuan_Beasiswa.docx.vbs</strong>
-            </div>
-        </div>
 
-        <!-- =========================================================
-             MODUL 5: INSPEKSI ISI STRING MENCURIGAKAN & VIRUSTOTAL
-             ========================================================= -->
-        <div class="guide-card">
-            <h2 style="font-size: 1.2rem; color: var(--accent);">5. Membedah Isi Teks Tersembunyi (Strings) &amp; Privasi VirusTotal</h2>
-            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 6px;">
-                Penyerang sering menyisipkan perintah <code>powershell</code>, URL <em>webhook</em> pencuri data, atau skrip tersembunyi di akhir file gambar (<code>.jpg</code>). Di Linux, kamu bisa mengintip teks yang bersarang di dalam file biner tanpa membukanya dengan perintah <code>strings</code>:
-            </p>
-            <div class="cmd-box mono">
-                <div>
-                    <span class="cmd-prompt">$</span><span class="cmd-verb">strings</span> <span class="cmd-arg">Denah_Ruangan_Kantor.jpg</span> <span class="cmd-verb">| grep -iE "http|powershell|cmd|\.exe|eval"</span>
+            <div class="os-pane" data-os-pane="mac">
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Perintah Terminal macOS (`strings` + `grep`):
                 </div>
-                <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('strings Denah_Ruangan_Kantor.jpg | grep -iE &quot;http|powershell|cmd|\\.exe|eval&quot;', 'Denah_Ruangan_Kantor.jpg')">Salin</button>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">%</span><span class="cmd-verb">strings</span> <span class="cmd-arg">Denah_Ruangan_Kantor.jpg</span> <span class="cmd-verb">| grep -iE "http|powershell|cmd|\.exe|eval"</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('strings Denah_Ruangan_Kantor.jpg | grep -iE &quot;http|powershell|cmd|\\.exe|eval&quot;', 'Denah_Ruangan_Kantor.jpg')">Salin</button>
+                </div>
             </div>
+
+            <div class="os-pane" data-os-pane="lin">
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Perintah Terminal Linux (`strings` + `grep`):
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">$</span><span class="cmd-verb">strings</span> <span class="cmd-arg">Denah_Ruangan_Kantor.jpg</span> <span class="cmd-verb">| grep -iE "http|powershell|cmd|\.exe|eval"</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('strings Denah_Ruangan_Kantor.jpg | grep -iE &quot;http|powershell|cmd|\\.exe|eval&quot;', 'Denah_Ruangan_Kantor.jpg')">Salin</button>
+                </div>
+            </div>
+
             <div class="terminal-out-box danger-out" style="margin-bottom: 12px;">
-                <span class="out-label">🚨 Contoh Output Jika Gambar Mengandung Payload Tersembunyi:</span>
+                <span class="out-label">Contoh Output Jika Gambar Mengandung Script Malware Tersembunyi:</span>
                 powershell.exe -NoProfile -WindowStyle Hidden -EncodedCommand JABzAD0ATgBlAHcALQBPAGIAag...<br>
                 https://malicious-c2-dropper.example.com/steal_cookie.php
             </div>
-            <p style="font-size: 0.86rem; color: var(--text-secondary);">
-                💡 <strong>Tips Privasi VirusTotal:</strong> Jangan pernah mengunggah dokumen pribadimu langsung ke situs pemindai publik. Gunakan <strong>Local Static File Inspector</strong> di Beranda FileMate untuk menyalin kode <strong>SHA-256</strong>-nya saja, lalu cek reputasi hash tersebut di VirusTotal dengan aman!
+            <p style="font-size: 0.86rem; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 8px;">
+                <svg class="svg-inline" style="margin-top: 3px;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>
+                <span><strong>Tips Privasi VirusTotal:</strong> Jangan pernah mengunggah dokumen pribadimu (kontrak, KTP, laporan) langsung ke situs pemindai publik. Gunakan <strong>Scanner Beranda FileMate</strong> untuk mengambil kode <strong>SHA-256</strong>-nya saja, lalu cek reputasi hash tersebut di VirusTotal dengan aman!</span>
             </p>
         </div>
 
-        <!-- =========================================================
-             MODUL 6: TANGGAP INSIDEN PERTAMA + COMMAND TERMINASI PROSES
-             ========================================================= -->
+        <!-- MODUL 6 -->
         <div class="guide-card">
-            <h2 style="font-size: 1.2rem; color: var(--accent);">6. Prosedur Darurat &amp; Perintah Isolasi Jika Terlanjur Klik Malware</h2>
+            <h2 style="font-size: 1.2rem; color: var(--accent);">6. Prosedur Darurat Jika Terlanjur Mengklik File Malware</h2>
             <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 6px;">
-                Apabila kamu tidak sengaja mengeksekusi berkas <em>crack/patch</em> atau lampiran yang memicu <em>malware</em>, lakukan 3 langkah penyelamatan darurat (<em>First Response</em>) ini dalam 60 detik pertama:
+                Apabila kamu tidak sengaja menjalankan berkas jebakan, lakukan <strong>3 Langkah Penyelamatan Darurat</strong> ini dalam 60 detik pertama:
             </p>
             <ol style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 10px; padding-left: 20px; line-height: 1.7;">
-                <li><strong>Putuskan Koneksi Internet Seketika:</strong> Matikan Wi-Fi atau cabut LAN agar <em>infostealer</em> gagal mengirim <em>session cookies</em> browser ke server peretas (<em>C2 Server</em>).</li>
-                <li><strong>Lacak &amp; Hentikan Proses Asing:</strong> Periksa proses mencurigakan dan koneksi jaringan gelap yang aktif menggunakan perintah di bawah ini.</li>
-                <li><strong>Rotasi Password &amp; Cabut Sesi dari HP:</strong> Gunakan perangkat lain yang bersih (HP) untuk mengganti password akun utama dan pilih <em>Logout from all devices</em>.</li>
+                <li><strong>Putuskan Internet Seketika:</strong> Matikan Wi-Fi / Mode Pesawat atau cabut kabel LAN agar <em>infostealer</em> gagal mengirim password &amp; <em>session cookies</em> ke server peretas.</li>
+                <li><strong>Matikan Proses Mencurigakan:</strong> Ikuti langkah sesuai sistem operasimu di bawah ini.</li>
+                <li><strong>Ganti Password dari HP (Perangkat Bersih):</strong> Gunakan HP untuk mengganti password email utama dan pilih <em>Logout from all devices</em>.</li>
             </ol>
 
-            <div class="sub-section-title">🛑 Perintah Terminal untuk Melacak &amp; Mematikan Proses Malware di Linux:</div>
-            <div class="cmd-box mono">
-                <div>
-                    <span class="cmd-prompt">$</span><span class="cmd-verb">ps aux --sort=-%cpu | head -n 6</span>
+            <div class="os-pane active" data-os-pane="win">
+                <div class="gui-friendly-box">
+                    <div class="gui-box-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--safe)" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+                        Cara Cepat Lewat Task Manager Windows:
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                        Tekan <code>Ctrl + Shift + Esc</code> untuk langsung membuka <strong>Task Manager</strong> &rarr; Cari aplikasi asing yang memakan CPU/Network tinggi &rarr; Klik kanan &rarr; pilih <strong>End task</strong>. Cek juga tab <strong>Startup Apps</strong> dan matikan (<em>Disable</em>) program asing.
+                    </p>
                 </div>
-                <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('ps aux --sort=-%cpu | head -n 6', null)">Salin</button>
-            </div>
-            <div class="terminal-out-box danger-out">
-                <span class="out-label">🚨 Contoh Output (Terlihat Proses Cryptominer/Stealer dengan PID 4812):</span>
-                USER       <strong>PID</strong> %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND<br>
-                mhs       <strong>4812</strong> 94.5  2.1 412900 44120 ?        Sl   13:18   1:42 <strong>/tmp/.update_dependency_miner</strong>
+
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    Perintah PowerShell &amp; CMD untuk Melacak dan Mematikan Paksa Proses Malware (PID):
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">PS&gt;</span><span class="cmd-verb">Get-Process | Sort-Object CPU -Descending | Select-Object -First 6 Id, ProcessName, CPU</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('Get-Process | Sort-Object CPU -Descending | Select-Object -First 6 Id, ProcessName, CPU', null)">Salin</button>
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">PS&gt;</span><span class="cmd-verb">Stop-Process -Id</span> <span class="cmd-arg">4812</span> <span class="cmd-verb">-Force</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('Stop-Process -Id 4812 -Force', '4812')">Salin</button>
+                </div>
+                <div class="cmd-hint">Ket: Ganti angka <code>4812</code> dengan nomor <strong>Id (PID)</strong> proses mencurigakan yang muncul pada daftar.</div>
             </div>
 
-            <div class="cmd-box mono">
-                <div>
-                    <span class="cmd-prompt">$</span><span class="cmd-verb">kill -9</span> <span class="cmd-arg">4812</span>
+            <div class="os-pane" data-os-pane="mac">
+                <div class="gui-friendly-box">
+                    <div class="gui-box-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--safe)" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+                        Cara Cepat Lewat Activity Monitor macOS:
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                        Tekan <code>Cmd + Space</code> lalu ketik <strong>Activity Monitor</strong> &rarr; Urutkan berdasarkan kolom <strong>% CPU</strong> &rarr; Pilih proses mencurigakan lalu klik ikon <strong>[ X ] (Force Quit)</strong> di bagian atas.
+                    </p>
                 </div>
-                <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('kill -9 4812', '4812')">Salin</button>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">%</span><span class="cmd-verb">ps aux -r | head -n 6</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('ps aux -r | head -n 6', null)">Salin</button>
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">%</span><span class="cmd-verb">kill -9</span> <span class="cmd-arg">4812</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('kill -9 4812', '4812')">Salin</button>
+                </div>
             </div>
-            <div class="cmd-hint">Ket: Ganti angka <code>4812</code> dengan nomor <strong>PID</strong> proses berbahaya yang ingin kamu hentikan paksa.</div>
+
+            <div class="os-pane" data-os-pane="lin">
+                <div class="sub-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    Perintah Terminal Linux untuk Melacak &amp; Mematikan Paksa Proses Malware:
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">$</span><span class="cmd-verb">ps aux --sort=-%cpu | head -n 6</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('ps aux --sort=-%cpu | head -n 6', null)">Salin</button>
+                </div>
+                <div class="terminal-out-box danger-out">
+                    <span class="out-label">Contoh Output (Terlihat Proses Cryptominer/Stealer dengan PID 4812):</span>
+                    USER       <strong>PID</strong> %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND<br>
+                    mhs       <strong>4812</strong> 94.5  2.1 412900 44120 ?        Sl   13:18   1:42 <strong>/tmp/.update_dependency_miner</strong>
+                </div>
+                <div class="cmd-box mono">
+                    <div>
+                        <span class="cmd-prompt">$</span><span class="cmd-verb">kill -9</span> <span class="cmd-arg">4812</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyGuideCommand('kill -9 4812', '4812')">Salin</button>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -382,9 +643,9 @@
         <a href="javascript:void(0)" onclick="openTeamCredits()" style="color: var(--accent); text-decoration: none; font-weight: 600;">Lihat Profil Tim Pengembang</a>
     </footer>
 
-    <script src="../tampilan/js/scenario_data.js"></script>
-    <script src="../tampilan/js/common.js"></script>
-    <script src="../tampilan/js/api.js"></script>
-    <script src="../tampilan/js/admin.js"></script>
+    <script src="../tampilan/js/scenario_data.js?v=5"></script>
+    <script src="../tampilan/js/api.js?v=5"></script>
+    <script src="../tampilan/js/common.js?v=5"></script>
+    <script src="../tampilan/js/admin.js?v=5"></script>
 </body>
 </html>
