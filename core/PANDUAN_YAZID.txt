@@ -38,3 +38,8 @@ PANDUAN TUGAS MUHAMAD YAZID FIRDAUS (LINUX & INFRASTRUCTURE SPECIALIST)
            proxy_set_header X-Real-IP $remote_addr;
        }
    }
+
+   >> PEMBARUAN 18/11/2026 (dari Kaysan): konfigurasi di atas belum meneruskan IP asli
+      dan belum membatasi request login admin. Gunakan panduan lengkap di
+      docs/NGINX_KEAMANAN_ADMIN.md (real_ip Cloudflare, X-Forwarded-For, limit_req,
+      PROXY_COUNT di .env, dan cara mengujinya).

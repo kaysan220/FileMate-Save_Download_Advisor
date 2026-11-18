@@ -313,3 +313,61 @@ STATUS MIGRASI JS -> SERVER: SELESAI (16/11/2026)
       - common.js     : tema terang/gelap ('filemate_theme' di localStorage)
       - scenario_data.js : SATGAS_TEAM (profil tim, bukan data rahasia)
       - localStorage 'filemate_session_id' : hanya ID sesi (bukan skor)
+
+=====================================================
+KEAMANAN LOGIN ADMIN — PERBAIKAN BERTAHAP
+=====================================================
+[1] Password cadangan dipindah ke .env --- SELESAI 18/11/2026
+    Masalah: hash SHA-256 password cadangan tertulis di core/admin_auth.py
+    (ikut ter-commit ke git). Hash itu bisa ditebak offline tanpa batas
+    percobaan, dan password lamanya pernah tertulis di chat.
+
+    Perubahan:
+      core/env.py (BARU)                    ← pemuat .env untuk app.py (root)
+      core/atur_password_cadangan.py (BARU) ← skrip: python -m core.atur_password_cadangan
+                                              (input tersembunyi + konfirmasi, min. 12
+                                              karakter; simpan SHA-256 ke .env; tambah
+                                              SECRET_KEY acak jika belum ada)
+      core/admin_auth.py                    ← hash bawaan DIHAPUS; dibaca dari
+                                              ADMIN_RECOVERY_HASH di .env. Belum diatur
+                                              -> /api/admin/recovery & /reset jawab 503.
+                                              /api/admin/status kini punya has_recovery.
+      .env.example (BARU)                   ← contoh isi .env (tanpa rahasia)
+      .gitignore                            ← tambah .env
+
+    Akibat: password cadangan lama TIDAK berlaku lagi (di kedua server).
+    Hash lama masih ada di riwayat git, tetapi sudah tidak diterima.
+
+[2] ProxyFix --- SELESAI 18/11/2026
+      core/proxy.py (BARU)        ← pasang ProxyFix jika PROXY_COUNT di .env > 0
+                                    (kosong = mati, WAJIB kosong saat jalan di laptop)
+      app.py, backend/app/__init__.py ← memanggil pasang_proxy_fix(app)
+    request.remote_addr kini berisi IP asli di balik Nginx/Cloudflare
+    (SECURITY.md K-05). Header X-Forwarded-For palsu dari pengunjung diabaikan.
+
+[3] Batas per IP + hitungan berkurang otomatis --- SELESAI 18/11/2026
+      core/admin_auth.py (ditulis ulang bagian penundaan)
+    - Per IP  : salah ke-5/15/25 -> tunda 30 dtk / 5 mnt / 1 jam;
+                ke-35 -> IP itu wajib password cadangan. IP lain tidak terganggu.
+    - Global  : total salah dari semua IP ke-50 -> tunda 5 mnt, ke-100 -> 1 jam,
+                ke-150 -> login ditutup untuk semua (wajib password cadangan).
+    - Hitungan kembali 0 setelah 24 jam tanpa salah (kecuali yang sudah
+      mencapai batas "wajib password cadangan").
+    - Login berhasil -> hitungan IP itu dihapus. Reset lewat password
+      cadangan -> semua hitungan dihapus.
+    - Selama tunda, /api/admin/* menjawab 429 untuk IP yang ditunda saja
+      (atau untuk semua jika tunda global).
+    - Gagal login dicatat ke log: "Login admin gagal: ip=... salah_ip=..."
+
+[4] Batas password cadangan di file + sesi admin kedaluwarsa --- SELESAI 18/11/2026
+    - Password cadangan salah: 5x / 5 mnt per IP + 20x / 24 jam total,
+      disimpan di data/admin_lock.json (tidak hilang saat restart).
+    - Sesi admin berakhir setelah 30 menit tidak aktif atau 8 jam sejak
+      login (dicek di server + cookie ber-Expires). admin.js otomatis
+      kembali ke form login (401).
+    - app.py: MAX_CONTENT_LENGTH 16 KB (sama dengan backend/).
+
+[5] Nginx limit_req --- PANDUAN DIBUAT 18/11/2026 (dikerjakan Yazid di server)
+      docs/NGINX_KEAMANAN_ADMIN.md (BARU) ← real_ip Cloudflare, X-Forwarded-For,
+                                            limit_req, PROXY_COUNT, firewall, cara uji
+      core/PANDUAN_YAZID.txt              ← ditambah rujukan ke panduan di atas

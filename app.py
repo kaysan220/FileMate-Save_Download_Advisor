@@ -8,6 +8,7 @@
 # =====================================================================
 import os
 import secrets
+from datetime import timedelta
 from functools import wraps
 from flask import Flask, Response, jsonify, request, send_from_directory, redirect, session
 from core.algorithms import (
@@ -16,6 +17,7 @@ from core.algorithms import (
 )
 from core.linux_utils import jalankan_sha256sum_linux, jalankan_inspeksi_linux
 from core import admin_auth, admin_data
+from core.proxy import pasang_proxy_fix
 # Logika sesi simulasi dipakai bersama dengan backend/ (tidak disalin ulang)
 from backend.app.simulation import service as sesi_service
 
@@ -31,7 +33,12 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,     # cookie tidak bisa dibaca JavaScript
     SESSION_COOKIE_SAMESITE="Strict", # cegah request dari situs lain (CSRF)
     SESSION_COOKIE_SECURE=os.environ.get("COOKIE_SECURE", "0") == "1",
+    # Cookie admin ikut kedaluwarsa setelah 30 menit tidak aktif (dicek juga di server)
+    PERMANENT_SESSION_LIFETIME=timedelta(seconds=admin_auth.SESI_IDLE_DETIK),
+    MAX_CONTENT_LENGTH=16 * 1024,     # body request maksimal 16 KB (sama dengan backend/)
 )
+# IP asli pengunjung di balik Nginx/Cloudflare (aktif hanya jika PROXY_COUNT di .env)
+pasang_proxy_fix(app)
 
 
 # Header Keamanan HTTP (AppSec Hardening)
@@ -179,19 +186,25 @@ def api_hash_file():
 # =====================================================================
 # ENDPOINT PASSWORD MAINTAINER (ADMIN) — logika di core/admin_auth.py
 # Frontend hanya mengirim SHA-256(password), tidak pernah password asli.
-# Password salah ke-5/15/25 -> tunda 30 dtk / 5 mnt / 1 jam; ke-35 -> wajib
-# password cadangan. Selama ditunda, semua /api/admin/* menjawab 429.
+# Per IP: salah ke-5/15/25 -> tunda 30 dtk / 5 mnt / 1 jam; ke-35 -> wajib
+# password cadangan. Ditambah batas global & hitungan yang kedaluwarsa 24 jam.
+# Selama ditunda, semua /api/admin/* menjawab 429 untuk IP tersebut.
 # =====================================================================
 def _body():
     body = request.get_json(silent=True)
     return body if isinstance(body, dict) else {}
 
 
+def _ip():
+    # Sudah berisi IP asli jika ProxyFix aktif (core/proxy.py)
+    return request.remote_addr or "?"
+
+
 def _jawab(hasil, login_berhasil=False):
     body, kode = hasil
     if login_berhasil and kode == 200:
-        session.clear()
-        session["is_admin"] = True   # cookie sesi: dibutuhkan endpoint data admin
+        admin_auth.mulai_sesi_admin(session)  # cookie sesi: dibutuhkan endpoint data admin
+        session.permanent = True              # berlaku PERMANENT_SESSION_LIFETIME
     resp = jsonify(body)
     resp.status_code = kode
     if body.get("retry_after"):
@@ -202,8 +215,9 @@ def _jawab(hasil, login_berhasil=False):
 def _wajib_admin(fn):
     @wraps(fn)
     def pembungkus(*args, **kwargs):
-        if not session.get("is_admin"):
-            return jsonify({"status": "error", "message": "Butuh login admin."}), 401
+        if not admin_auth.cek_sesi_admin(session):
+            return jsonify({"status": "error",
+                            "message": "Sesi admin berakhir atau belum login. Silakan login lagi."}), 401
         return fn(*args, **kwargs)
     return pembungkus
 
@@ -211,7 +225,7 @@ def _wajib_admin(fn):
 @app.before_request
 def tutup_admin_saat_ditunda():
     if request.path.startswith("/api/admin/"):
-        hasil = admin_auth.cek_akses_api()
+        hasil = admin_auth.cek_akses_api(_ip())
         if hasil is not None:
             session.pop("is_admin", None)
             return _jawab(hasil)
@@ -220,7 +234,7 @@ def tutup_admin_saat_ditunda():
 
 @app.route("/api/admin/status", methods=["GET"])
 def api_admin_status():
-    return _jawab(admin_auth.rute_status())
+    return _jawab(admin_auth.rute_status(_ip()))
 
 
 @app.route("/api/admin/setup", methods=["POST"])
@@ -230,19 +244,19 @@ def api_admin_setup():
 
 @app.route("/api/admin/login", methods=["POST"])
 def api_admin_login():
-    return _jawab(admin_auth.rute_login(_body().get("password_hash")), login_berhasil=True)
+    return _jawab(admin_auth.rute_login(_ip(), _body().get("password_hash")), login_berhasil=True)
 
 
 @app.route("/api/admin/recovery", methods=["POST"])
 def api_admin_recovery():
-    return _jawab(admin_auth.rute_recovery(request.remote_addr or "?", _body().get("recovery_hash")))
+    return _jawab(admin_auth.rute_recovery(_ip(), _body().get("recovery_hash")))
 
 
 @app.route("/api/admin/reset", methods=["POST"])
 def api_admin_reset():
     body = _body()
     return _jawab(admin_auth.rute_reset(
-        request.remote_addr or "?", body.get("recovery_hash"), body.get("new_password_hash")),
+        _ip(), body.get("recovery_hash"), body.get("new_password_hash")),
         login_berhasil=True)
 
 

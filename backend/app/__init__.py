@@ -4,16 +4,25 @@
 #                 memasang security headers & (opsional) halaman statis.
 # =====================================================================
 import os
+import sys
+from datetime import timedelta
 
 from flask import Flask, redirect, send_from_directory
 
 from .common.responses import gagal
-from .config import Config
+from .config import Config, ROOT_DIR
+
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+from core import admin_auth  # noqa: E402
+from core.proxy import pasang_proxy_fix  # noqa: E402
 
 
 def create_app(config_override=None):
     app = Flask(__name__, static_folder=None)
     app.config.from_object(Config)
+    # Cookie admin kedaluwarsa setelah 30 menit tidak aktif (dicek juga di server)
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(seconds=admin_auth.SESI_IDLE_DETIK)
     if config_override:
         app.config.update(config_override)
 
@@ -28,6 +37,8 @@ def create_app(config_override=None):
     for bp in (simulation_bp, leaderboard_bp, feedback_bp, admin_bp):
         app.register_blueprint(bp)
 
+    # IP asli pengunjung di balik Nginx/Cloudflare (aktif hanya jika PROXY_COUNT di .env)
+    pasang_proxy_fix(app)
     _pasang_security_headers(app)
     _pasang_error_handler(app)
     if app.config["SERVE_STATIC"]:

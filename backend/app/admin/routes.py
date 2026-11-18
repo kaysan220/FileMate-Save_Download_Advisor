@@ -13,9 +13,12 @@
 # KEAMANAN (logika di core/admin_auth.py, dipakai bersama app.py):
 #   - Frontend mengirim SHA-256(password); server menyimpan PBKDF2 dari hash itu
 #   - Perbandingan constant-time (hmac.compare_digest)
-#   - Password salah ke-5/15/25 -> tunda 30 dtk / 5 mnt / 1 jam;
-#     ke-35 -> login ditutup, wajib password cadangan.
+#   - Per IP: password salah ke-5/15/25 -> tunda 30 dtk / 5 mnt / 1 jam;
+#     ke-35 -> IP itu wajib password cadangan. Ada juga batas global &
+#     hitungan yang kedaluwarsa setelah 24 jam tanpa salah.
 #     Selama ditunda, SEMUA endpoint /api/admin/* menjawab 429.
+#   - Sesi admin berakhir setelah 30 menit tidak aktif (maks. 8 jam).
+#   - IP asli di balik proxy: ProxyFix (PROXY_COUNT di .env, core/proxy.py).
 # =====================================================================
 import sys
 from functools import wraps
@@ -43,8 +46,8 @@ def _ip():
 def _jawab(hasil, login_berhasil=False):
     body, kode = hasil
     if login_berhasil and kode == 200:
-        session.clear()
-        session["is_admin"] = True
+        admin_auth.mulai_sesi_admin(session)
+        session.permanent = True
     resp = jsonify(body)
     resp.status_code = kode
     if body.get("retry_after"):
@@ -55,7 +58,7 @@ def _jawab(hasil, login_berhasil=False):
 @bp.before_request
 def tutup_saat_ditunda():
     """Selama penundaan aktif, semua endpoint admin ditolak."""
-    hasil = admin_auth.cek_akses_api()
+    hasil = admin_auth.cek_akses_api(_ip())
     if hasil is not None:
         session.pop("is_admin", None)
         return _jawab(hasil)
@@ -65,15 +68,15 @@ def tutup_saat_ditunda():
 def wajib_admin(fn):
     @wraps(fn)
     def pembungkus(*args, **kwargs):
-        if not session.get("is_admin"):
-            return gagal("Butuh login admin.", 401)
+        if not admin_auth.cek_sesi_admin(session):
+            return gagal("Sesi admin berakhir atau belum login. Silakan login lagi.", 401)
         return fn(*args, **kwargs)
     return pembungkus
 
 
 @bp.get("/status")
 def status():
-    return _jawab(admin_auth.rute_status())
+    return _jawab(admin_auth.rute_status(_ip()))
 
 
 @bp.post("/setup")
@@ -83,7 +86,7 @@ def setup():
 
 @bp.post("/login")
 def login():
-    return _jawab(admin_auth.rute_login(ambil_json().get("password_hash")), login_berhasil=True)
+    return _jawab(admin_auth.rute_login(_ip(), ambil_json().get("password_hash")), login_berhasil=True)
 
 
 @bp.post("/recovery")

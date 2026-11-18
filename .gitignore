@@ -4,3 +4,6 @@ data/admin_password.json.tmp
 # Status penundaan login admin (jumlah password salah)
 data/admin_lock.json
 data/admin_lock.json.tmp
+# Rahasia server (hash password cadangan admin, SECRET_KEY) — jangan di-commit
+.env
+.env.tmp
