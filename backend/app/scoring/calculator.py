@@ -6,12 +6,18 @@
 #     - memakai hint                     : -5
 #   Kategori: <=50 TINGGI | 51-80 SEDANG | >80 RENDAH
 # =====================================================================
+import math
+
 from ..common.sanitize import ke_int
 
 SKOR_AWAL = 100
 PENALTI_MALWARE = 15
 PENALTI_FALSE_ALARM = 5
 PENALTI_HINT = 5
+
+# Semua penalti kelipatan 5 -> skor yang mungkin selalu kelipatan 5.
+# Dipakai untuk memvalidasi skor kiriman frontend (common/kiriman.py).
+KELIPATAN_SKOR = math.gcd(SKOR_AWAL, PENALTI_MALWARE, PENALTI_FALSE_ALARM, PENALTI_HINT)
 
 KATEGORI_VALID = ("RENDAH", "SEDANG", "TINGGI")
 

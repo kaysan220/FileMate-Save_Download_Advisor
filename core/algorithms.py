@@ -4,22 +4,37 @@
 # Berisi 5 Fungsi Modular Utama sesuai panduan Mini PBL:
 #   1. baca_skenario()      -> Membaca & mengacak 3 skenario dari skenario.json
 #   2. nilai()              -> Menghitung skor akhir & klasifikasi kategori risiko
+#      kategori_risiko()    -> Percabangan kategori (dipakai nilai() & tulis_log())
 #   3. sensor_nama()        -> Pseudonimisasi nama user (R****T) & Sanitasi Anti-XSS
 #   4. tulis_log()          -> Menyimpan skor ke hasil.csv (Anti-CSV Injection)
 #   5. tulis_feedback()     -> Menyimpan masukan responden ke feedback_user.csv
 #   6. ringkasan_dashboard()-> Statistik ikhtisar untuk halaman dashboard.html
+#
+# SINKRON dengan backend/ (versi SQLite): aturan skor, kategori risiko,
+# sensor nama, sanitasi CSV, dan format data yang dikembalikan sama persis
+# dengan backend/app/scoring/calculator.py & backend/app/common/sanitize.py
+# (diuji di tests/test_sinkron_frontend.py).
 # =====================================================================
 import os
 import json
 import csv
 import random
 import re
+import threading
 from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKENARIO_PATH = os.path.join(BASE_DIR, "data", "skenario.json")
 HASIL_CSV_PATH = os.path.join(BASE_DIR, "data", "hasil.csv")
 FEEDBACK_CSV_PATH = os.path.join(BASE_DIR, "data", "feedback_user.csv")
+
+KATEGORI_VALID = ("RENDAH", "SEDANG", "TINGGI")
+_AWALAN_FORMULA = ("=", "+", "-", "@", "\t", "\r")
+# Inisial yang SUDAH disensor (R****T / A****) — dikirim result.js ke /api/submit-feedback
+_POLA_SUDAH_DISENSOR = re.compile(r"[^*]\*{4}[^*]?")
+# Server Flask berjalan multi-thread: penulisan CSV dikunci agar baris & kode
+# responden (P01, P02, ...) tidak bertabrakan.
+_kunci_csv = threading.Lock()
 
 
 # 1. FUNGSI MEMBACA & MENGACAK SKENARIO (TUGAS ROHIT & KAYSAN)
@@ -66,15 +81,16 @@ def nilai(jumlah_malware_dibuka, jumlah_salah_hapus, jumlah_hint):
     skor_awal = 100
     penalti = (int(jumlah_malware_dibuka) * 15) + (int(jumlah_salah_hapus) * 5) + (int(jumlah_hint) * 5)
     skor_akhir = max(0, skor_awal - penalti)
+    return skor_akhir, kategori_risiko(skor_akhir)
 
-    if skor_akhir <= 50:
-        kategori = "TINGGI"
-    elif skor_akhir <= 80:
-        kategori = "SEDANG"
-    else:
-        kategori = "RENDAH"
 
-    return skor_akhir, kategori
+def kategori_risiko(skor):
+    """Percabangan kategori risiko: <= 50 TINGGI, 51-80 SEDANG, > 80 RENDAH."""
+    if skor <= 50:
+        return "TINGGI"
+    if skor <= 80:
+        return "SEDANG"
+    return "RENDAH"
 
 
 # 3. FUNGSI SANITASI & PSEUDONIMISASI NAMA (KEAMANAN & PRIVASI DATA)
@@ -83,11 +99,14 @@ def sensor_nama(nama_input):
     Membersihkan input nama dari karakter berbahaya (< > " ' & = + - @)
     dan menyensor nama menjadi huruf awal & akhir saja (contoh: Rohit -> R****T).
     Jika kosong (edge-case), otomatis menjadi A****M (Anonim).
+    Idempoten: inisial yang sudah tersensor (R****T, A****) tidak disensor dua kali.
     """
     bersih = re.sub(r'[<>"\'&=+\-@]', '', str(nama_input or '')).strip()
+    bersih = bersih[:20]  # Batasi maksimal 20 karakter
     if not bersih:
         bersih = "Anonim"
-    bersih = bersih[:20]  # Batasi maksimal 20 karakter
+    if _POLA_SUDAH_DISENSOR.fullmatch(bersih):
+        return bersih.upper()
 
     if len(bersih) > 1:
         return f"{bersih[0].upper()}****{bersih[-1].upper()}"
@@ -96,30 +115,35 @@ def sensor_nama(nama_input):
 
 def sanitasi_teks_csv(teks, max_len=300):
     """
-    Mencegah XSS dan CSV Formula Injection saat disimpan ke file .csv.
+    Mencegah XSS dan CSV Formula Injection saat disimpan ke file .csv:
+    membuang < >, memotong panjang, dan memberi awalan ' pada teks yang
+    diawali karakter formula (= + - @ TAB CR).
     """
     bersih = re.sub(r'[<>]', '', str(teks or '')).strip()[:max_len]
-    if bersih and bersih[0] in ('=', '+', '-', '@'):
+    if bersih and bersih[0] in _AWALAN_FORMULA:
         bersih = "'" + bersih
     return bersih
 
 
 # 4. FUNGSI PENCATATAN LOG LEADERBOARD KE hasil.csv (TUGAS KAYSAN & YAZID)
-def tulis_log(nama_input, skor, waktu_str, kategori_risiko):
+def tulis_log(nama_input, skor, waktu_str, kategori):
     """
     Menyimpan baris baru ke data/hasil.csv secara aman.
+    Mengembalikan nama yang sudah disensor (R****T).
     """
     nama_aman = sensor_nama(nama_input)
     skor_aman = max(0, min(100, int(skor)))
     waktu_aman = sanitasi_teks_csv(waktu_str, max_len=10)
-    kategori_aman = kategori_risiko if kategori_risiko in ("TINGGI", "SEDANG", "RENDAH") else "RENDAH"
+    # Kategori tidak dikenal -> dihitung ulang dari skor (sama dengan backend/)
+    kategori_aman = kategori if kategori in KATEGORI_VALID else kategori_risiko(skor_aman)
 
-    file_exists = os.path.exists(HASIL_CSV_PATH)
-    with open(HASIL_CSV_PATH, "a", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        if not file_exists:
-            writer.writerow(["nama_anonim", "skor", "waktu", "kategori_risiko"])
-        writer.writerow([nama_aman, skor_aman, waktu_aman, kategori_aman])
+    with _kunci_csv:
+        file_exists = os.path.exists(HASIL_CSV_PATH)
+        with open(HASIL_CSV_PATH, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(["nama_anonim", "skor", "waktu", "kategori_risiko"])
+            writer.writerow([nama_aman, skor_aman, waktu_aman, kategori_aman])
 
     return nama_aman
 
@@ -153,27 +177,33 @@ def baca_leaderboard(limit=6):
 def tulis_feedback(inisial_user, skor, pesan_saran):
     """
     Menyimpan masukan/saran pengguna ke data/feedback_user.csv untuk dokumentasi User Testing.
+    Mengembalikan kode responden (P01, P02, ...) atau None jika pesan kosong
+    — sama dengan backend/app/feedback/repository.simpan_feedback().
     """
     pesan_aman = sanitasi_teks_csv(pesan_saran, max_len=300)
     if not pesan_aman:
-        return False
+        return None
 
-    urutan = 1
-    if os.path.exists(FEEDBACK_CSV_PATH):
-        with open(FEEDBACK_CSV_PATH, "r", encoding="utf-8") as f:
-            urutan = max(1, sum(1 for _ in f))
+    with _kunci_csv:
+        file_exists = os.path.exists(FEEDBACK_CSV_PATH)
+        jumlah_baris = 0
+        if file_exists:
+            # Dihitung per baris CSV (bukan per baris teks) agar pesan yang berisi
+            # enter tidak membuat nomor responden meloncat.
+            with open(FEEDBACK_CSV_PATH, "r", encoding="utf-8", newline="") as f:
+                jumlah_baris = sum(1 for _ in csv.DictReader(f))
 
-    kode_resp = f"P{urutan:02d}"
-    waktu_skrg = datetime.now().strftime("%d/%m/%Y %H.%M")
+        kode_resp = f"P{jumlah_baris + 1:02d}"
+        # Format waktu sama dengan kolom created_at di SQLite (backend/)
+        waktu_skrg = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    file_exists = os.path.exists(FEEDBACK_CSV_PATH)
-    with open(FEEDBACK_CSV_PATH, "a", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        if not file_exists:
-            writer.writerow(["kode_responden", "inisial_anonim", "skor", "waktu_input", "saran_dan_masukan"])
-        writer.writerow([kode_resp, sanitasi_teks_csv(inisial_user, 10), int(skor), waktu_skrg, pesan_aman])
+        with open(FEEDBACK_CSV_PATH, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(["kode_responden", "inisial_anonim", "skor", "waktu_input", "saran_dan_masukan"])
+            writer.writerow([kode_resp, sanitasi_teks_csv(inisial_user, 10), int(skor), waktu_skrg, pesan_aman])
 
-    return True
+    return kode_resp
 
 
 # 6. FUNGSI RINGKASAN STATISTIK UNTUK HALAMAN DASHBOARD (dashboard.html)

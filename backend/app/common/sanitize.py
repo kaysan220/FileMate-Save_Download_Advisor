@@ -5,6 +5,9 @@ import re
 
 _KARAKTER_BERBAHAYA = re.compile(r'[<>"\'&=+\-@]')
 _AWALAN_FORMULA = ("=", "+", "-", "@", "\t", "\r")
+# Inisial yang SUDAH disensor (R****T / A****). result.js mengirim inisial
+# bentuk ini ke /api/submit-feedback, jadi tidak boleh disensor dua kali.
+_POLA_SUDAH_DISENSOR = re.compile(r"[^*]\*{4}[^*]?")
 
 
 def sensor_nama(nama_input):
@@ -12,10 +15,13 @@ def sensor_nama(nama_input):
     Membersihkan nama dari karakter berbahaya lalu menyensornya menjadi
     huruf awal & akhir saja (contoh: Rohit -> R****T).
     Edge-case: input kosong -> A****M (Anonim).
+    Idempoten: inisial yang sudah tersensor (R****T, A****) dikembalikan apa adanya.
     """
     bersih = _KARAKTER_BERBAHAYA.sub("", str(nama_input or "")).strip()[:20]
     if not bersih:
         bersih = "Anonim"
+    if _POLA_SUDAH_DISENSOR.fullmatch(bersih):
+        return bersih.upper()
     if len(bersih) > 1:
         return f"{bersih[0].upper()}****{bersih[-1].upper()}"
     return f"{bersih.upper()}****"

@@ -4,6 +4,12 @@
 > Dokumen ini disusun dari pembacaan **seluruh isi folder** pada branch `development`
 > (commit `59e3e65`, dicek 20/11/2026). Isinya menggambarkan kondisi kode **yang benar-benar ada**,
 > bukan rencana. Rencana & catatan migrasi ada di [Arsitektur_File_Folder.md](Arsitektur_File_Folder.md).
+>
+> **Pembaruan 21/11/2026 (branch `Kaysan--Backend`)** — sinkronisasi backend dengan frontend:
+> `backend/` kini melayani 4 endpoint yang dipakai frontend sama persis dengan `app.py`
+> (modul bersama `backend/app/common/kiriman.py`), `core/linux_utils.py` disamakan dengan
+> `tests/test_linux_utils.py`, file dummy ke-19 (`Runtime_Pack_v1.msi`) dibuat, dan `docs/`
+> diperbarui. Frontend (`page/`, `tampilan/`) **tidak diubah**. Detail di §10.
 
 ---
 
@@ -60,7 +66,9 @@ Fitur utama:
 │  Flask + security headers + ProxyFix (core/proxy.py)                       │
 │  Menyajikan /page, /tampilan, /image                                       │
 │  /api/session/*  ──► backend/app/simulation/service.py  (dipakai bersama)  │
-│  /api/leaderboard, /api/dashboard-stats, /api/submit-* ──► core/algorithms │
+│  /api/submit-*   ──► backend/app/common/kiriman.py (validasi, bersama)     │
+│                      → core/algorithms.py (tulis CSV)                      │
+│  /api/leaderboard, /api/dashboard-stats ──► core/algorithms.py             │
 │  /api/inspect, /api/hash  ──► core/linux_utils.py                          │
 │  /api/admin/*  ──► core/admin_auth.py + core/admin_data.py                 │
 └──────────┬───────────────────────────────┬─────────────────────────────────┘
@@ -71,18 +79,21 @@ Fitur utama:
    data/admin_lock.json (otomatis)
 
 ┌──────────────── SERVER B: backend/ (Flask + SQLite) ───────────────────────┐
-│  backend/wsgi.py → create_app()  ⚠ backend/app/__init__.py TERHAPUS (lihat §9)│
-│  blueprint: simulation/ · leaderboard/ · feedback/ · admin/                │
-│  logika: scoring/ · common/ · db.py · config.py                            │
+│  backend/wsgi.py → create_app()                                            │
+│  blueprint: simulation/ · leaderboard/ (+/submit-score)                    │
+│             feedback/ (/submit-feedback) · admin/                          │
+│  logika: scoring/ · common/ (kiriman, sanitize, responses) · db.py · config│
 │  data: data/filemate.db (tabel scores, feedback, meta)                     │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
 Hubungan antar-backend:
 - `app.py` **memakai ulang** `backend/app/simulation/service.py` (logika sesi) dan
-  `backend/app/scoring/calculator.py` (`kategori_risiko`), jadi sebagian kode `backend/` ikut
-  berjalan walaupun server B sendiri tidak dijalankan.
-- `backend/app/admin/routes.py` memakai `core/admin_auth.py` (autentikasi admin dipakai bersama).
+  `backend/app/common/kiriman.py` (validasi skor/feedback + batas per IP), jadi sebagian kode
+  `backend/` ikut berjalan walaupun server B sendiri tidak dijalankan.
+- `backend/` memakai `core/admin_auth.py` (autentikasi admin) dan `core/proxy.py` (ProxyFix).
+- Untuk 4 endpoint yang dipanggil frontend, kedua server menjawab **identik**
+  (diuji `tests/test_sinkron_frontend.py`).
 
 ---
 
@@ -91,6 +102,7 @@ Hubungan antar-backend:
 ```
 FileMate - Save Download Advisor/
 ├── app.py                         ← Server A (Flask, CSV) — server yang dipakai sekarang
+├── .env.example, .gitignore       ← contoh konfigurasi & daftar file yang tidak di-commit
 ├── Arsitektur_File_Folder.md      ← rencana folder + catatan migrasi & progres
 ├── Arsitektur_Filemate_v1.0.md    ← dokumen ini
 ├── PANDUAN_TIM_BACKEND.md         ← pembagian folder & PIC untuk tim
@@ -100,14 +112,15 @@ FileMate - Save Download Advisor/
 │   ├── wsgi.py
 │   ├── requirements.txt
 │   └── app/
+│       ├── __init__.py
 │       ├── config.py
 │       ├── db.py
-│       ├── common/      (__init__.py, responses.py, sanitize.py)
+│       ├── common/      (__init__.py, responses.py, sanitize.py, kiriman.py)
 │       ├── simulation/  (__init__.py, routes.py, service.py, scenario.py, linux_utils.py)
 │       ├── scoring/     (__init__.py, calculator.py)
 │       ├── leaderboard/ (__init__.py, routes.py, repository.py)
 │       ├── feedback/    (__init__.py, routes.py, repository.py)
-│       └── admin/       (routes.py, export.py)          ⚠ __init__.py hilang
+│       └── admin/       (__init__.py, routes.py, export.py)
 │
 ├── core/                          ← modul logika untuk app.py
 │   ├── __init__.py, algorithms.py, linux_utils.py
@@ -117,7 +130,7 @@ FileMate - Save Download Advisor/
 │
 ├── data/                          ← data server (TIDAK disajikan ke browser)
 │   ├── skenario.json
-│   ├── dummy_files/  (18 file dummy)
+│   ├── dummy_files/  (19 file dummy)
 │   ├── hasil.csv, feedback_user.csv
 │   ├── filemate.db
 │   ├── admin_password.json
@@ -140,7 +153,8 @@ FileMate - Save Download Advisor/
 │   └── filemate-light.png, filemate_dark.png, logo-transparency.png, logo-white.png
 │
 └── tests/
-    └── test_linux_utils.py
+    ├── test_linux_utils.py
+    └── test_sinkron_frontend.py
 ```
 
 ---
@@ -151,7 +165,9 @@ FileMate - Save Download Advisor/
 
 | File | Kegunaan |
 |------|----------|
-| `app.py` | **Server utama yang dipakai sekarang.** Flask di `127.0.0.1:5000`. Menyajikan halaman statis (`/page`, `/tampilan`, `/image`, `/` → `dashboard.html`), menambahkan security header, memasang ProxyFix, dan menyediakan semua endpoint API (sesi simulasi, leaderboard, dashboard, inspect/hash, submit skor/feedback, admin). Data disimpan ke CSV. Konfigurasi: TTL sesi 1 jam, maks 500 sesi, cookie admin HttpOnly + SameSite=Strict, body maks 16 KB. |
+| `app.py` | **Server utama yang dipakai sekarang.** Flask di `127.0.0.1:5000`. Menyajikan halaman statis (`/page`, `/tampilan`, `/image`, `/` → `dashboard.html`), menambahkan security header, memasang ProxyFix, dan menyediakan semua endpoint API (sesi simulasi, leaderboard, dashboard, inspect/hash, submit skor/feedback, admin). Data disimpan ke CSV. Validasi `/api/submit-*` memakai `backend/app/common/kiriman.py` (sama dengan server B). Konfigurasi: TTL sesi 1 jam, maks 500 sesi, cookie admin HttpOnly + SameSite=Strict, body maks 16 KB, batas kiriman `SUBMIT_BATAS_PER_IP`. |
+| `.env.example` | Contoh isi `.env`: `ADMIN_RECOVERY_HASH`, `SECRET_KEY`, `COOKIE_SECURE`, `PROXY_COUNT`, `SUBMIT_BATAS_PER_IP`, `SUBMIT_JENDELA_DETIK`. |
+| `.gitignore` | Mengabaikan `.env`, `data/admin_*.json`, `__pycache__/`, `*.pyc`, `*.db`. |
 | `Arsitektur_File_Folder.md` | Rencana struktur folder dengan penanda status (OK/BELUM), catatan migrasi JS → server [1]–[5], perbaikan keamanan login admin, dan progres backend. |
 | `PANDUAN_TIM_BACKEND.md` | Ringkasan pembagian folder dan penanggung jawab (PIC) tiap anggota tim. |
 | `__pycache__/app.cpython-310.pyc` | Bytecode hasil kompilasi Python — file otomatis, tidak perlu di-commit. |
@@ -162,19 +178,21 @@ FileMate - Save Download Advisor/
 |------|----------|
 | `wsgi.py` | Titik masuk server B: `python backend/wsgi.py` (pengembangan) atau `gunicorn --chdir backend -w 1 --threads 4 wsgi:app` (produksi). Mengimpor `create_app()` dari paket `app`. |
 | `requirements.txt` | Dependensi: Flask 3.x dan gunicorn (hanya non-Windows). |
-| `app/config.py` | Membaca `.env` (parser sederhana tanpa library), menentukan semua path data dengan fallback struktur lama → baru (`_pilih_path`): skenario, dummy, DB, schema, export, CSV lama, folder statis. Berisi `SECRET_KEY`, pengaturan cookie, `SERVE_STATIC`, TTL sesi. |
+| `app/__init__.py` | `create_app()`: memuat config, `init_db()`, mendaftarkan 4 blueprint, ProxyFix, security headers, error JSON untuk `/api/*` (termasuk `KirimanError`), dan rute statis bila `SERVE_STATIC=1`. |
+| `app/config.py` | Membaca `.env` (parser sederhana tanpa library), menentukan semua path data dengan fallback struktur lama → baru (`_pilih_path`): skenario, dummy, DB, schema, export, CSV lama, folder statis. Berisi `SECRET_KEY`, pengaturan cookie, `SERVE_STATIC`, TTL sesi, `SUBMIT_BATAS_PER_IP`/`SUBMIT_JENDELA_DETIK`. |
 | `app/db.py` | Koneksi SQLite per request (`get_db` via `flask.g`), `init_db()` membuat tabel `scores`, `feedback`, `meta` (dari `SKEMA_BAWAAN` bila `database/schema.sql` belum ada) dan mengimpor CSV lama **sekali saja** (penanda di tabel `meta`). |
 | `app/common/responses.py` | Format respons JSON seragam: `sukses()` → `{status:"ok", data}`, `gagal()` → `{status:"error", message}`, `ambil_json()` membaca body dengan aman. |
-| `app/common/sanitize.py` | `sensor_nama()` (Rohit → `R****T`, kosong → `A****M`), `sanitasi_teks_csv()` (anti-XSS & anti-CSV Injection), `sanitasi_waktu()` (format mm:ss), `ke_int()` (konversi angka aman dengan batas). |
+| `app/common/sanitize.py` | `sensor_nama()` (Rohit → `R****T`, kosong → `A****M`, idempoten untuk inisial yang sudah tersensor), `sanitasi_teks_csv()` (anti-XSS & anti-CSV Injection), `sanitasi_waktu()` (format mm:ss), `ke_int()` (konversi angka aman dengan batas). |
+| `app/common/kiriman.py` | **Dipakai kedua server.** Validasi body `/api/submit-score` & `/api/submit-feedback` dari `result.js` (skor int 0–100 kelipatan 5, waktu `MM:SS`, kategori dihitung server, nama disensor, pesan disanitasi) + batas kiriman per IP (`cek_batas_kiriman`, `429`). `KirimanError` untuk error 4xx. |
 | `app/simulation/service.py` | **Inti logika simulasi** (dipakai juga oleh `app.py`). State sesi di memori (`_sesi`, `_hasil`, dengan lock): `mulai_sesi`, `putuskan` (nilai keputusan buka/hapus, kirim ending & pembahasan bila skenario selesai), `minta_hint` (penalti 1x per skenario), `selesaikan` (skor akhir, kesalahan per jenis SPOOFING/HASH/FATIGUE/IMPULSIVE, riwayat), `ambil_hasil`, `simpan_hasil` (1x), `ambil_data_feedback` (1x), `batalkan_feedback`. `SesiError` untuk error 4xx. |
 | `app/simulation/scenario.py` | Membaca `skenario.json`, memilih 1 skenario acak per kategori + mengacak urutan, `versi_publik()` membuang kunci jawaban (`isMalware`, `payloadStatus`, hint, ending, pembahasan), `ringkasan_bank()` untuk statistik dashboard. |
 | `app/simulation/routes.py` | Blueprint `/api`: `/session/start`, `/decide`, `/hint`, `/finish`, `/result`, `/save`, `/feedback`, serta `/inspect` dan `/hash`. |
-| `app/simulation/linux_utils.py` | `sha256sum`, `file --mime-type`, `ls -l` terhadap `data/dummy_files/`. Anti path traversal (`basename` + `commonpath`), `shell=False`, timeout 3 detik, fallback `hashlib`/`os.stat` di Windows. |
-| `app/scoring/calculator.py` | Skor awal 100; penalti −15 buka malware, −5 hapus file aman, −5 hint; skor minimal 0. Kategori: ≤50 TINGGI, 51–80 SEDANG, >80 RENDAH. |
-| `app/leaderboard/repository.py` | Query SQL tabel `scores` (parameter `?`, aman SQL Injection): simpan, top skor, statistik (total sesi, rata-rata, sebaran risiko), semua skor, hapus semua. |
-| `app/leaderboard/routes.py` | `GET /api/leaderboard?limit=` dan `GET /api/dashboard-stats`. |
+| `app/simulation/linux_utils.py` | `sha256sum`, `file --mime-type`, `ls -l` terhadap `data/dummy_files/`. Anti path traversal (`basename` + `commonpath`), `shell=False`, timeout 3 detik, fallback `hashlib`/`os.stat` bila perintah gagal. (Belum mengikuti kontrol tambahan di `core/linux_utils.py` — SECURITY.md K-10.) |
+| `app/scoring/calculator.py` | Skor awal 100; penalti −15 buka malware, −5 hapus file aman, −5 hint; skor minimal 0. Kategori: ≤50 TINGGI, 51–80 SEDANG, >80 RENDAH. `KELIPATAN_SKOR` (= 5) untuk validasi skor kiriman frontend. |
+| `app/leaderboard/repository.py` | Query SQL tabel `scores` (parameter `?`, aman SQL Injection): simpan (kategori tak dikenal dihitung ulang dari skor), top skor, statistik (total sesi, rata-rata, sebaran risiko), semua skor, hapus semua. |
+| `app/leaderboard/routes.py` | `GET /api/leaderboard?limit=`, `GET /api/dashboard-stats`, dan `POST /api/submit-score` (dipakai `result.js`). |
 | `app/feedback/repository.py` | Query SQL tabel `feedback`: simpan (kode responden `P01`, `P02`, …), daftar, hapus semua, konversi ke dict. |
-| `app/feedback/routes.py` | Blueprint kosong + konstanta `MAKS_PANJANG_PESAN = 300` (feedback kini lewat `/api/session/<sid>/feedback`). |
+| `app/feedback/routes.py` | `POST /api/submit-feedback` (dipakai `result.js`) + konstanta `MAKS_PANJANG_PESAN = 300`. |
 | `app/admin/routes.py` | Blueprint `/api/admin`: status, setup, login, recovery, reset, logout, feedback, export CSV, clear data. Penundaan login & sesi admin memakai `core/admin_auth.py`. |
 | `app/admin/export.py` | SQL → CSV (`hasil.csv`, `feedback_user.csv`), tiap sel disanitasi ulang; `simpan_ke_folder()` untuk ekspor ke `data/exports/`. |
 | `app/*/__init__.py` | Penanda paket Python (berisi komentar saja). |
@@ -185,8 +203,8 @@ FileMate - Save Download Advisor/
 | File | Kegunaan |
 |------|----------|
 | `__init__.py` | Mengekspor fungsi publik `algorithms` & `linux_utils` (`from core import nilai, sensor_nama, ...`), versi `1.0.0`. |
-| `algorithms.py` | Logika versi CSV (bahan sidang Alpro): `baca_skenario`, `nilai`, `sensor_nama`, `sanitasi_teks_csv`, `tulis_log` (→ `hasil.csv`), `baca_leaderboard`, `tulis_feedback` (→ `feedback_user.csv`), `ringkasan_dashboard`. Path data didefinisikan di sini. |
-| `linux_utils.py` | Versi awal utilitas Linux (`sha256sum`, `file`, `ls -l`) untuk `app.py`, dengan fallback Windows. |
+| `algorithms.py` | Logika versi CSV (bahan sidang Alpro): `baca_skenario`, `nilai`, `kategori_risiko`, `sensor_nama`, `sanitasi_teks_csv`, `tulis_log` (→ `hasil.csv`), `baca_leaderboard`, `tulis_feedback` (→ `feedback_user.csv`, mengembalikan kode `P01`…), `ringkasan_dashboard`. Hasilnya diuji sama dengan `backend/app`. Penulisan CSV dikunci (multi-thread). Path data didefinisikan di sini. |
+| `linux_utils.py` | Utilitas Linux untuk `app.py` dengan 5 prinsip yang diuji `tests/test_linux_utils.py`: nama berbahaya ditolak, `realpath` + `commonpath` (anti traversal & symlink), `shell=False` + `--`, kegagalan jujur (`UtilitasLinuxError`, tanpa bocor detail), fallback non-Linux berlabel (`mime_linux: null`). |
 | `admin_auth.py` | Autentikasi admin (tanpa Flask): frontend mengirim SHA-256(password), server menyimpan PBKDF2-SHA256 (200.000 iterasi + salt) di `data/admin_password.json`, perbandingan `hmac.compare_digest`. Penundaan login per IP & global, password cadangan dari `ADMIN_RECOVERY_HASH` di `.env`, status kunci di `data/admin_lock.json`, sesi admin 30 menit idle / 8 jam maks. Dipakai **kedua** server. |
 | `admin_data.py` | Data menu Satgas versi CSV: baca feedback, buat CSV unduhan (disanitasi), kosongkan CSV (header tetap, tulis atomik). |
 | `env.py` | Pemuat `.env` untuk `app.py` (tidak menimpa variabel sistem). |
@@ -200,8 +218,8 @@ FileMate - Save Download Advisor/
 | File | Kegunaan |
 |------|----------|
 | `skenario.json` | **Satu-satunya bank soal di server.** 4 skenario: SPOOFING (`spoof_hrd_01`, `spoof_ukt_02`, masing-masing 3 file), HASH (`hash_forum_01`, 3 file), FATIGUE (`fatigue_usb_01`, 10 file). Tiap file berisi nama tampil/asli, ekstensi, MIME, magic bytes, permission, hash, `expectedHash`, `isMalware`, `payloadStatus`. |
-| `dummy_files/` | 18 file dummy **aman** (hanya header beberapa byte) agar `file`, `sha256sum`, `ls -l` bisa dijalankan sungguhan. Contoh: `Kontrak_Magang_2026.pdf.exe`, `Data_Kuisioner_User.xlsx.vbs`, `Patch_Update_v2.zip`. |
-| `buat_dummy.py` | Membuat ulang file dummy dari `skenario.json` sesuai magic bytes; set `chmod 755` untuk file ber-permission `x`, `644` untuk lainnya. |
+| `dummy_files/` | 19 file dummy **aman** (hanya header beberapa byte), satu untuk setiap file skenario, agar `file`, `sha256sum`, `ls -l` bisa dijalankan sungguhan. Contoh: `Kontrak_Magang_2026.pdf.exe`, `Data_Kuisioner_User.xlsx.vbs`, `Patch_Update_v2.zip`, `Runtime_Pack_v1.msi`. |
+| `buat_dummy.py` | Membuat ulang file dummy dari `skenario.json` sesuai magic bytes (PDF, JPEG, PNG, ZIP, MSI/OLE, shell script, PE/MZ); set `chmod 755` untuk file ber-permission `x`, `644` untuk lainnya. |
 | `hasil.csv` | Log skor leaderboard untuk `app.py` (`nama_anonim, skor, waktu, kategori_risiko`). Saat ini hanya header. |
 | `feedback_user.csv` | Masukan pengguna untuk `app.py` (`kode_responden, inisial_anonim, skor, waktu_input, saran_dan_masukan`). Saat ini hanya header. |
 | `filemate.db` | Database SQLite server B (dibuat otomatis oleh `db.init_db()`). |
@@ -262,7 +280,8 @@ Semua halaman memuat `base.css`, `components.css`, `pages.css` dan script `scena
 |------|----------|
 | `image/filemate-light.png`, `filemate_dark.png` | Logo untuk tema terang & gelap (dipakai di header halaman). |
 | `image/logo-transparency.png`, `logo-white.png` | Varian logo (transparan / putih). |
-| `tests/test_linux_utils.py` | Unit test keamanan `core/linux_utils.py` (path traversal, command injection, fallback) dengan mock. |
+| `tests/test_linux_utils.py` | Unit test keamanan `core/linux_utils.py` (path traversal, command injection, fallback) dengan mock — 18 tes. |
+| `tests/test_sinkron_frontend.py` | Mengirim request persis seperti `result.js`/`leaderboard.js`/`common.js` ke **kedua** server dan memastikan jawabannya identik; juga mengecek `skenario.json` == `SCENARIO_BANK` dan kelengkapan `dummy_files/` — 30 tes. |
 
 ---
 
@@ -278,12 +297,14 @@ play.html (game.js)                                result.html (result.js)      
   │   di browser, skor dihitung di browser           │
   │ simpan filemate_final_score, _seconds,           │
   │   _mistakes, _history ke localStorage ──────────►│ baca localStorage
-  │                                                  │ POST /api/submit-score ─────────► validasi skor 0–100
-  │                                                  │   {username, score, time}          kelipatan 5, rate limit,
-  │                                                  │                                    kategori dihitung server
-  │                                                  │                                    → data/hasil.csv
-  │                                                  │ POST /api/submit-feedback ──────► → data/feedback_user.csv
+  │                                                  │ POST /api/submit-score ─────────► common/kiriman.py:
+  │                                                  │   {username, score, time}          skor 0–100 kelipatan 5,
+  │                                                  │                                    kategori dihitung server,
+  │                                                  │                                    batas per IP
+  │                                                  │                                    → hasil.csv | tabel scores
+  │                                                  │ POST /api/submit-feedback ──────► → feedback_user.csv | tabel feedback
 ```
+Alur ini dilayani **identik** oleh `app.py` (CSV) dan `backend/` (SQLite).
 
 ### 6.2 Alur bermain — versi aman yang sudah tersedia di server (belum dipakai frontend)
 
@@ -329,8 +350,8 @@ POST /api/session/<sid>/feedback  {message}  → masukan 1x (inisial & skor dari
 | GET | `/api/dashboard-stats` | ✅ | ✅ | Statistik dashboard |
 | GET | `/api/inspect?file=` | ✅ | ✅ | `file --mime-type` + `ls -l` |
 | GET | `/api/hash?file=` | ✅ | ✅ | `sha256sum` |
-| POST | `/api/submit-score` | ✅ | — | Skor dari browser (dipakai `result.js` sekarang) |
-| POST | `/api/submit-feedback` | ✅ | — | Masukan dari browser (dipakai `result.js` sekarang) |
+| POST | `/api/submit-score` | ✅ | ✅ | Skor dari browser (dipakai `result.js` sekarang) |
+| POST | `/api/submit-feedback` | ✅ | ✅ | Masukan dari browser (dipakai `result.js` sekarang) |
 | GET | `/api/admin/status` | ✅ | ✅ | Status password & penundaan |
 | POST | `/api/admin/setup` | ✅ | ✅ | Buat password pertama |
 | POST | `/api/admin/login` | ✅ | ✅ | Login admin |
@@ -343,6 +364,7 @@ POST /api/session/<sid>/feedback  {message}  → masukan 1x (inisial & skor dari
 
 Format respons: sukses `{"status":"ok","data":...}`, gagal `{"status":"error","message":"..."}`
 (kecuali `/api/leaderboard` dan `/api/dashboard-stats` yang mengembalikan JSON langsung).
+Detail lengkap tiap endpoint: [docs/API_CONTRACT.md](docs/API_CONTRACT.md).
 
 ---
 
@@ -363,8 +385,9 @@ Format respons: sukses `{"status":"ok","data":...}`, gagal `{"status":"error","m
 
 | Ancaman | Kontrol | Lokasi |
 |---------|---------|--------|
-| Path traversal (`../../etc/passwd`) | `basename()` + cek tetap di dalam `dummy_files/` | `*/linux_utils.py` |
-| Command injection | `subprocess.run([...], shell=False)`, timeout 3 dtk | `*/linux_utils.py` |
+| Path traversal (`../../etc/passwd`) | `core/`: nama ber-`/`, `\`, NUL ditolak + `realpath`/`commonpath`; `backend/`: `basename()` + `commonpath` | `*/linux_utils.py` |
+| Command injection | `subprocess.run([...], shell=False)`, timeout 3 dtk (`core/`: + argumen `--`) | `*/linux_utils.py` |
+| Skor palsu dari browser | Skor int 0–100 kelipatan 5, kategori dihitung server, batas kiriman per IP | `backend/app/common/kiriman.py` |
 | SQL injection | Query berparameter `?` | `backend/app/*/repository.py` |
 | XSS | `escapeHTML()` di frontend, buang `< >` di server | `common.js`, `sanitize.py`, `algorithms.py` |
 | CSV injection | Awalan `= + - @ \t \r` diberi `'`, sanitasi ulang saat export | `sanitize.py`, `admin/export.py`, `admin_data.py` |
@@ -372,53 +395,72 @@ Format respons: sukses `{"status":"ok","data":...}`, gagal `{"status":"error","m
 | Brute force admin | Penundaan bertahap per IP & global, batas password cadangan, PBKDF2 + `compare_digest` | `core/admin_auth.py` |
 | Pembajakan sesi/CSRF admin | Cookie HttpOnly, SameSite=Strict, Secure (opsional), idle 30 mnt | `app.py`, `config.py` |
 | IP palsu di balik proxy | ProxyFix sesuai `PROXY_COUNT` | `core/proxy.py` |
-| Spam skor/feedback | Validasi skor, rate limit 5 kiriman / IP / 10 mnt | `app.py` |
+| Spam skor/feedback | Batas `SUBMIT_BATAS_PER_IP` kiriman / IP / `SUBMIT_JENDELA_DETIK` (bawaan 5 / 10 mnt) | `backend/app/common/kiriman.py` (kedua server) |
 | Clickjacking / MIME sniffing | `X-Frame-Options: DENY`, `nosniff`, Referrer-Policy | `app.py` |
 | DoS sederhana | Body maks 16 KB, maks 500 sesi aktif | `app.py`, `config.py` |
 | Kebocoran kunci jawaban (server) | `versi_publik()` membuang field rahasia | `simulation/scenario.py` |
 
 ---
 
-## 10. Status & Temuan Pemeriksaan (20/11/2026)
+## 10. Status & Temuan Pemeriksaan
 
-Hasil uji cepat:
-- `app.py` **berjalan**: `POST /api/session/start` → 201, `GET /api/leaderboard` → 200.
-- `backend/wsgi.py` **gagal**: `ImportError: cannot import name 'create_app'`.
-- `python -m unittest tests.test_linux_utils` → 18 tes: **1 failure, 22 error, 3 skipped**.
+### 10.1 Hasil uji (21/11/2026, setelah sinkronisasi backend)
+- `app.py` **berjalan** dan `backend/wsgi.py` **berjalan** (`create_app()` sudah pulih).
+- `python -m unittest discover -s tests` → **48 tes OK, 3 di-skip** (tes Linux asli & symlink di Windows).
+- Untuk 4 endpoint yang dipanggil frontend, kedua server menjawab **identik**
+  (`tests/test_sinkron_frontend.py`).
 
-Temuan yang perlu ditindaklanjuti:
+### 10.2 Temuan 20/11/2026 dan statusnya
 
-| # | Temuan | Dampak | Saran |
-|---|--------|--------|-------|
-| 1 | `backend/app/__init__.py`, `backend/app/admin/__init__.py`, `.gitignore`, `.env.example` **terhapus** di commit `10d0d16`. | Server B tidak bisa jalan (`create_app()` hilang); `.env` & cache berisiko ter-commit. | Pulihkan dari riwayat git: `git checkout 10d0d16~1 -- backend/app/__init__.py backend/app/admin/__init__.py .gitignore .env.example`. |
-| 2 | Frontend di `tampilan/js/` adalah versi **14/11** (commit Fardan `7cde0d9`), belum versi migrasi 16/11 yang dicatat di `Arsitektur_File_Folder.md`. | `game.js` menilai di browser dari `SCENARIO_BANK`; `result.js` mengirim skor dari browser; endpoint `/api/session/*` tidak dipakai. | Gabungkan ulang `game.js`, `result.js`, `leaderboard.js`, `admin.js`, `scenario_data.js` versi migrasi. |
-| 3 | `scenario_data.js` masih berisi `SCENARIO_BANK` lengkap dengan `isMalware`, hint, ending. | Kunci jawaban bisa dilihat lewat View Source/DevTools; leaderboard bisa dicurangi. | Hapus `SCENARIO_BANK`, sisakan `SATGAS_TEAM`. |
-| 4 | `admin.js` memeriksa PIN admin **langsung di JavaScript** (PIN tertulis di kode). | Siapa pun bisa membaca PIN dan membuka menu Satgas; tidak memakai `core/admin_auth.py`. | Pakai alur `/api/admin/status → setup/login`; ganti PIN yang sudah bocor. |
-| 5 | `tests/test_linux_utils.py` memanggil fungsi (mis. `_is_linux`) yang tidak ada di `core/linux_utils.py`. | Tes gagal. | Samakan tes dengan kode (atau arahkan tes ke `backend/app/simulation/linux_utils.py`). |
-| 6 | `core/linux_utils.py` memakai `startswith()` untuk cek path; versi `backend/` sudah memakai `commonpath()`. | Versi `core/` sedikit lebih lemah. | Pakai satu implementasi (versi `backend/`). |
-| 7 | `__pycache__/` (root, `core/`, `backend/`, `tests/`) ikut ter-commit; `data/admin_password.json` & `data/filemate.db` juga ter-commit. | Repo kotor; hash admin & data ikut tersebar. | Tambahkan ke `.gitignore`, lalu `git rm --cached`. |
-| 8 | `tampilan/js/main.js` dan `tampilan/css/style.css` tidak dimuat halaman mana pun. | Kode mati, membingungkan. | Hapus atau pindah ke folder arsip. |
-| 9 | Dua server (CSV vs SQLite) berjalan paralel dan datanya tidak sinkron. | Bingung saat deploy. | Putuskan satu server untuk produksi. |
-| 10 | Belum ada: `README.md`, `CHANGELOG.md`, `database/schema.sql`, `deployment/` (nginx.conf, filemate.service), tes scoring/sanitize/scenario/api. | Dokumentasi & deploy belum lengkap. | Lihat daftar [C] di `Arsitektur_File_Folder.md`. |
+| # | Temuan | Status | Keterangan |
+|---|--------|--------|------------|
+| 1 | `backend/app/__init__.py`, `backend/app/admin/__init__.py`, `.gitignore`, `.env.example` terhapus di commit `10d0d16`. | ✅ Selesai | Dipulihkan (commit `3ecbf15`). Baris `.gitignore` yang rusak (UTF-16) ditulis ulang: `__pycache__/`, `*.pyc`, `*.db` kini benar-benar diabaikan. |
+| 2 | Frontend di `tampilan/js/` versi 14/11, belum versi migrasi 16/11. | ⏳ Frontend | Backend disesuaikan dengan frontend yang ada: `backend/` kini juga melayani `/api/submit-score` & `/api/submit-feedback`. Migrasi frontend ke `/api/session/*` tetap disarankan. |
+| 3 | `scenario_data.js` berisi `SCENARIO_BANK` lengkap dengan kunci jawaban. | ⏳ Frontend | SECURITY.md K-02. `data/skenario.json` dipastikan **identik** dengan `SCENARIO_BANK` (diuji otomatis). |
+| 4 | `admin.js` memeriksa PIN admin di JavaScript. | ⏳ Frontend | SECURITY.md K-01. Endpoint server `/api/admin/*` sudah siap. |
+| 5 | `tests/test_linux_utils.py` gagal (fungsi `_is_linux` tidak ada). | ✅ Selesai | `core/linux_utils.py` ditulis ulang mengikuti tes (tes tidak diubah) → 18 tes lulus. |
+| 6 | `core/linux_utils.py` memakai `startswith()` untuk cek path. | ✅ Selesai | Kini `realpath` + `commonpath`, nama ber-`/`/`\`/NUL ditolak, argumen `--`. `backend/app/simulation/linux_utils.py` sengaja tidak diubah (K-10). |
+| 7 | `__pycache__/`, `data/admin_password.json`, `data/filemate.db` ter-commit. | ⏳ Terbuka | `.gitignore` sudah benar; tinggal `git rm --cached` (SECURITY.md K-11). |
+| 8 | `main.js` & `style.css` tidak dimuat halaman mana pun. | ⏳ Frontend | – |
+| 9 | Dua server berjalan paralel, datanya tidak sinkron. | ⏳ Keputusan tim | API kini identik, jadi frontend bisa dipakai dengan server mana pun; data CSV & SQLite tetap terpisah. |
+| 10 | Belum ada README, CHANGELOG, `database/schema.sql`, `deployment/`, tes alur sesi & admin. | ⏳ Terbuka | Tes sinkronisasi frontend sudah ditambahkan. |
+
+### 10.3 Perubahan sinkronisasi 21/11/2026 (hanya sisi backend)
+
+| Bagian | Perubahan |
+|--------|-----------|
+| `backend/app/common/kiriman.py` (baru) | Validasi `/api/submit-*` + batas kiriman per IP — satu modul untuk kedua server |
+| `backend/app/leaderboard/routes.py`, `feedback/routes.py` | Tambah `POST /api/submit-score` & `POST /api/submit-feedback` |
+| `backend/app/__init__.py`, `config.py` | Handler `KirimanError`; `SUBMIT_BATAS_PER_IP`, `SUBMIT_JENDELA_DETIK` |
+| `backend/app/common/sanitize.py`, `core/algorithms.py` | `sensor_nama()` idempoten (inisial `A****` dari `result.js` tidak jadi `A*****`); aturan sanitasi CSV disamakan |
+| `backend/app/scoring/calculator.py` | `KELIPATAN_SKOR` untuk validasi skor |
+| `backend/app/leaderboard/repository.py`, `core/algorithms.py` | Kategori tak dikenal dihitung ulang dari skor (dulu: TINGGI vs RENDAH) |
+| `backend/app/simulation/routes.py`, `app.py` | Respons feedback seragam `{saved, kode_responden}` |
+| `app.py` | Memakai `kiriman.py`; `?limit=` di leaderboard; `/inspect` & `/hash` → `400`/`503` |
+| `core/algorithms.py` | `tulis_feedback()` mengembalikan kode responden; nomor dihitung per baris CSV; waktu `YYYY-MM-DD HH:MM:SS`; penulisan CSV dikunci |
+| `core/linux_utils.py`, `core/__init__.py` | Lihat temuan #5–6; ekspor `UtilitasLinuxError`, `kategori_risiko` |
+| `data/buat_dummy.py`, `data/dummy_files/` | Header MSI (`D0 CF 11 E0`); `Runtime_Pack_v1.msi` dibuat (19 file) |
+| `.env.example`, `docs/*`, panduan | Diperbarui sesuai kode |
 
 ---
 
 ## 11. Cara Menjalankan
 
 ```bash
-# Server A (dipakai sekarang, CSV)
 pip install -r backend/requirements.txt
+
+# Server A (dipakai sekarang, CSV)
 python app.py                       # → http://127.0.0.1:5000  (redirect ke /page/dashboard.html)
 
-# Server B (Flask + SQLite) — setelah backend/app/__init__.py dipulihkan
+# Server B (Flask + SQLite) — API sama dengan server A
 python backend/wsgi.py
 # Produksi (Linux):
 SERVE_STATIC=0 gunicorn --chdir backend -w 1 --threads 4 -b 127.0.0.1:5000 wsgi:app
 
 # Utilitas
-python data/buat_dummy.py           # buat ulang 18 file dummy dari skenario.json
+python data/buat_dummy.py           # buat ulang 19 file dummy dari skenario.json
 python -m core.atur_password_cadangan   # atur password cadangan admin ke .env
-python -m unittest tests.test_linux_utils -v
+python -m unittest discover -s tests -v
 ```
 
 ---

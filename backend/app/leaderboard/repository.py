@@ -3,15 +3,17 @@
 # Selalu memakai parameter (?) -> aman dari SQL Injection.
 # =====================================================================
 from ..db import get_db
-from ..scoring.calculator import KATEGORI_VALID
+from ..scoring.calculator import KATEGORI_VALID, kategori_risiko
 
 
 def simpan_skor(nama_anonim, skor, waktu, kategori):
-    kategori = kategori if kategori in KATEGORI_VALID else "TINGGI"
+    skor = max(0, min(100, int(skor)))
+    # Kategori tidak dikenal -> dihitung ulang dari skor (sama dengan core/algorithms.tulis_log)
+    kategori = kategori if kategori in KATEGORI_VALID else kategori_risiko(skor)
     db = get_db()
     db.execute(
         "INSERT INTO scores (nama_anonim, skor, waktu, kategori_risiko) VALUES (?, ?, ?, ?)",
-        (nama_anonim, max(0, min(100, int(skor))), waktu, kategori),
+        (nama_anonim, skor, waktu, kategori),
     )
     db.commit()
 

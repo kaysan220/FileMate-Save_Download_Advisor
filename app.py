@@ -7,23 +7,25 @@
 #   3. Buka browser di http://127.0.0.1:5000
 # =====================================================================
 import os
-import re
 import secrets
-import threading
-import time
 from datetime import timedelta
 from functools import wraps
 from flask import Flask, Response, jsonify, request, send_from_directory, redirect, session
 from core.algorithms import (
     SKENARIO_PATH, tulis_log, baca_leaderboard, tulis_feedback,
-    ringkasan_dashboard, sensor_nama
+    ringkasan_dashboard
 )
-from backend.app.scoring.calculator import kategori_risiko
-from core.linux_utils import jalankan_sha256sum_linux, jalankan_inspeksi_linux
+from core.linux_utils import UtilitasLinuxError, jalankan_sha256sum_linux, jalankan_inspeksi_linux
 from core import admin_auth, admin_data
 from core.proxy import pasang_proxy_fix
-# Logika sesi simulasi dipakai bersama dengan backend/ (tidak disalin ulang)
+# Logika yang dipakai bersama dengan backend/ (tidak disalin ulang):
+#   - sesi simulasi        : backend/app/simulation/service.py
+#   - kiriman skor/feedback: backend/app/common/kiriman.py (validasi + batas per IP)
 from backend.app.simulation import service as sesi_service
+from backend.app.common.kiriman import (
+    KirimanError, cek_batas_kiriman, konfigurasi_env, validasi_feedback, validasi_skor
+)
+from backend.app.common.sanitize import ke_int
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__)
@@ -40,6 +42,9 @@ app.config.update(
     # Cookie admin ikut kedaluwarsa setelah 30 menit tidak aktif (dicek juga di server)
     PERMANENT_SESSION_LIFETIME=timedelta(seconds=admin_auth.SESI_IDLE_DETIK),
     MAX_CONTENT_LENGTH=16 * 1024,     # body request maksimal 16 KB (sama dengan backend/)
+    # Batas kiriman /api/submit-score & /api/submit-feedback per IP
+    # (SUBMIT_BATAS_PER_IP & SUBMIT_JENDELA_DETIK di .env; bawaan 5 per 10 menit)
+    **konfigurasi_env(),
 )
 # IP asli pengunjung di balik Nginx/Cloudflare (aktif hanya jika PROXY_COUNT di .env)
 pasang_proxy_fix(app)
@@ -93,6 +98,12 @@ def tangani_sesi_error(e):
     return jsonify({"status": "error", "message": str(e)}), e.status
 
 
+@app.errorhandler(KirimanError)
+def tangani_kiriman_error(e):
+    """Kiriman skor/feedback frontend ditolak (validasi / batas per IP) — sama dengan backend/."""
+    return jsonify({"status": "error", "message": str(e)}), e.status
+
+
 def _json_body():
     body = request.get_json(silent=True)
     return body if isinstance(body, dict) else {}
@@ -142,16 +153,18 @@ def api_session_feedback(sid):
     if not pesan:
         return jsonify({"status": "error", "message": "Pesan masukan tidak boleh kosong."}), 400
     data = sesi_service.ambil_data_feedback(sid)
-    if not tulis_feedback(data["user"], data["score"], pesan):
+    kode = tulis_feedback(data["user"], data["score"], pesan)
+    if not kode:
         sesi_service.batalkan_feedback(sid)
         return jsonify({"status": "error", "message": "Pesan masukan tidak valid."}), 400
-    return _ok({"saved": True}, 201)
+    return _ok({"saved": True, "kode_responden": kode}, 201)
 
 
 @app.route("/api/leaderboard", methods=["GET"])
 def api_get_leaderboard():
-    """Membaca daftar peringkat dari data/hasil.csv (Tugas Kaysan & Yazid)."""
-    return jsonify(baca_leaderboard(limit=6))
+    """Membaca daftar peringkat dari data/hasil.csv (Tugas Kaysan & Yazid). limit 1-50, bawaan 6."""
+    limit = ke_int(request.args.get("limit"), default=6, minimum=1, maksimum=50)
+    return jsonify(baca_leaderboard(limit=limit))
 
 
 @app.route("/api/dashboard-stats", methods=["GET"])
@@ -163,102 +176,52 @@ def api_dashboard_stats():
 @app.route("/api/inspect", methods=["GET"])
 def api_inspect_file():
     """Menjalankan utilitas Linux `file --mime-type` dan `ls -l` (Tugas Yazid)."""
-    nama_file = request.args.get("file", "")
-    try:
-        hasil = jalankan_inspeksi_linux(nama_file)
-        return jsonify({"status": "ok", "data": hasil})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 400
+    return _utilitas_linux(jalankan_inspeksi_linux)
 
 
 @app.route("/api/hash", methods=["GET"])
 def api_hash_file():
     """Menjalankan utilitas Linux `sha256sum` (Tugas Yazid)."""
-    nama_file = request.args.get("file", "")
+    return _utilitas_linux(jalankan_sha256sum_linux)
+
+
+def _utilitas_linux(fungsi):
+    """400 = nama file ditolak / tidak ada; 503 = perintah Linux gagal (core/linux_utils.py)."""
     try:
-        hasil = jalankan_sha256sum_linux(nama_file)
-        return jsonify({"status": "ok", "data": hasil})
-    except Exception as e:
+        return jsonify({"status": "ok", "data": fungsi(request.args.get("file", ""))})
+    except (ValueError, FileNotFoundError) as e:
         return jsonify({"status": "error", "message": str(e)}), 400
+    except UtilitasLinuxError as e:
+        return jsonify({"status": "error", "message": str(e)}), 503
 
 
 # ---------------------------------------------------------------------
 # SIMPAN SKOR & FEEDBACK DARI FRONTEND (dipakai tampilan/js/result.js)
 # Frontend saat ini menghitung skor di browser (game.js) lalu mengirimnya ke
-# sini. Karena nilainya berasal dari klien (SECURITY.md K-03), server:
-#   - hanya menerima skor 0-100 kelipatan 5 (sesuai penalti -15/-5/-5),
-#   - menghitung kategori risiko sendiri (tidak percaya kiriman klien),
-#   - membatasi jumlah kiriman per IP (anti-spam leaderboard/feedback).
+# sini. Karena nilainya berasal dari klien (SECURITY.md K-03), validasi &
+# batas kiriman per IP dilakukan di backend/app/common/kiriman.py — modul
+# yang sama dipakai backend/, sehingga kedua server menjawab identik.
 # Alur yang lebih aman (skor dihitung server) tetap tersedia di /api/session/*.
 # ---------------------------------------------------------------------
-_POLA_WAKTU = re.compile(r"^\d{1,3}:[0-5]\d$")  # MM:SS dari result.js
-_BATAS_KIRIM = 5                 # kiriman maksimal per IP per jendela waktu
-_JENDELA_KIRIM_DETIK = 10 * 60   # jendela 10 menit
-_riwayat_kirim = {}              # (jenis, ip) -> [timestamp, ...]
-_kunci_kirim = threading.Lock()
-
-
-def _boleh_kirim(jenis):
-    """Rate limit sederhana di memori (hilang saat restart, cukup untuk 1 worker)."""
-    sekarang = time.monotonic()
-    kunci = (jenis, _ip())
-    with _kunci_kirim:
-        jejak = [t for t in _riwayat_kirim.get(kunci, []) if sekarang - t < _JENDELA_KIRIM_DETIK]
-        boleh = len(jejak) < _BATAS_KIRIM
-        if boleh:
-            jejak.append(sekarang)
-        _riwayat_kirim[kunci] = jejak
-        if len(_riwayat_kirim) > 5000:  # cegah dict tumbuh tanpa batas
-            for k in [k for k, v in _riwayat_kirim.items() if not v]:
-                del _riwayat_kirim[k]
-        return boleh
-
-
-def _skor_valid(nilai_skor):
-    if isinstance(nilai_skor, bool) or not isinstance(nilai_skor, int):
-        return None
-    if not (0 <= nilai_skor <= 100) or nilai_skor % 5 != 0:
-        return None
-    return nilai_skor
-
-
-def _tolak(pesan, status=400):
-    return jsonify({"status": "error", "message": pesan}), status
-
-
 @app.route("/api/submit-score", methods=["POST"])
 def api_submit_score():
     """Body: {username, score, time}. Nama disensor & disimpan ke data/hasil.csv."""
     body = _json_body()
-    skor = _skor_valid(body.get("score"))
-    waktu = str(body.get("time") or "")
-    if skor is None:
-        return _tolak("Skor tidak valid.")
-    if not _POLA_WAKTU.match(waktu):
-        return _tolak("Format waktu harus MM:SS.")
-    if not _boleh_kirim("skor"):
-        return _tolak("Terlalu banyak kiriman skor. Coba lagi nanti.", 429)
-    kategori = kategori_risiko(skor)
-    nama = tulis_log(body.get("username", ""), skor, waktu, kategori)
-    return _ok({"masked_name": nama, "score": skor, "time": waktu, "risk_category": kategori}, 201)
+    data = validasi_skor(body)
+    cek_batas_kiriman("skor")
+    tulis_log(body.get("username", ""), data["score"], data["time"], data["risk_category"])
+    return _ok(data, 201)
 
 
 @app.route("/api/submit-feedback", methods=["POST"])
 def api_submit_feedback():
     """Body: {user, score, message}. Disimpan ke data/feedback_user.csv."""
-    body = _json_body()
-    skor = _skor_valid(body.get("score"))
-    pesan = str(body.get("message") or "").strip()
-    if skor is None:
-        return _tolak("Skor tidak valid.")
-    if not pesan:
-        return _tolak("Pesan masukan tidak boleh kosong.")
-    if not _boleh_kirim("feedback"):
-        return _tolak("Terlalu banyak kiriman masukan. Coba lagi nanti.", 429)
-    # sensor_nama idempoten untuk inisial "R****T"; nama asli juga ikut disensor
-    if not tulis_feedback(sensor_nama(body.get("user", "")), skor, pesan):
-        return _tolak("Pesan masukan tidak valid.")
-    return _ok({"saved": True}, 201)
+    data = validasi_feedback(_json_body())
+    cek_batas_kiriman("feedback")
+    kode = tulis_feedback(data["user"], data["score"], data["message"])
+    if not kode:
+        return jsonify({"status": "error", "message": "Pesan masukan tidak valid."}), 400
+    return _ok({"saved": True, "kode_responden": kode}, 201)
 
 
 # =====================================================================

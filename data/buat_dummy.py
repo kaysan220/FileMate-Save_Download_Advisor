@@ -23,6 +23,9 @@ def generate_safe_dummy_bytes(file_info):
         return b"\xff\xd8\xff\xe0\x00\x10JFIF\x00Simulasi Gambar JPEG FileMate"
     elif "89 50 4E 47" in magic:
         return b"\x89PNG\r\n\x1a\nSimulasi Gambar PNG FileMate"
+    elif "D0 CF 11 E0" in magic:
+        # Header OLE Compound File — dipakai paket .msi (Runtime_Pack_v1.msi)
+        return b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 24 + b"Simulasi Paket MSI FileMate - " + real_name.encode()
     elif "50 4B 03 04" in magic:
         return b"PK\x03\x04Simulasi Arsip ZIP/Office FileMate - " + real_name.encode()
     elif "#!/bin/sh" in magic:

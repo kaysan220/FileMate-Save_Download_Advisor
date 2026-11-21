@@ -4,6 +4,8 @@
 import os
 import secrets
 
+from .common.kiriman import BAWAAN_BATAS_PER_IP, BAWAAN_JENDELA_DETIK, angka_env
+
 # backend/app/config.py -> naik 2 tingkat = folder backend/, 3 tingkat = root proyek
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT_DIR = os.path.dirname(BACKEND_DIR)
@@ -81,3 +83,8 @@ class Config:
     # --- Sesi simulasi ---
     SESSION_TTL_DETIK = 60 * 60       # sesi simulasi kedaluwarsa setelah 1 jam
     MAKS_SESI_AKTIF = 500             # batas sesi di memori (anti-DoS sederhana)
+
+    # --- Batas kiriman /api/submit-score & /api/submit-feedback per IP ---
+    # (sama dengan app.py; lihat common/kiriman.py dan .env.example)
+    SUBMIT_BATAS_PER_IP = angka_env("SUBMIT_BATAS_PER_IP", BAWAAN_BATAS_PER_IP)
+    SUBMIT_JENDELA_DETIK = angka_env("SUBMIT_JENDELA_DETIK", BAWAAN_JENDELA_DETIK)

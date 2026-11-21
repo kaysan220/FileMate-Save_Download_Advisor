@@ -1,7 +1,7 @@
 # TESTING — FileMate
 
 Panduan pengujian FileMate: unit test otomatis, uji API manual, uji keamanan, dan
-checklist user testing.
+checklist user testing. *(Diperbarui 21/11/2026.)*
 
 ---
 
@@ -9,20 +9,12 @@ checklist user testing.
 
 ```bash
 pip install -r backend/requirements.txt
-pip install pytest
 ```
 
-Gunakan database terpisah agar data asli tidak tercampur:
-
-```bash
-# Linux / Git Bash
-export DB_PATH=/tmp/filemate_test.db
-export ADMIN_PIN=1234
-
-# PowerShell
-$env:DB_PATH = "$env:TEMP\filemate_test.db"
-$env:ADMIN_PIN = "1234"
-```
+Tes memakai `unittest` bawaan Python (tanpa pytest) dan menyalin data ke folder sementara,
+jadi `data/hasil.csv`, `data/feedback_user.csv`, dan `data/filemate.db` asli **tidak tersentuh**.
+Node.js (opsional) dipakai untuk membandingkan `skenario.json` dengan `SCENARIO_BANK` frontend;
+jika tidak ada, tes itu otomatis di-skip.
 
 ---
 
@@ -31,121 +23,68 @@ $env:ADMIN_PIN = "1234"
 Jalankan dari root proyek:
 
 ```bash
-pytest -v
+python -m unittest discover -s tests -v
+# atau per file:
+python -m unittest tests.test_linux_utils -v
+python -m unittest tests.test_sinkron_frontend -v
 ```
 
-| File | Yang diuji | Kasus minimum |
-|------|------------|---------------|
-| `test_scoring.py` | `nilai()`, `kategori_risiko()` | 0 kesalahan → 100 RENDAH; 1 malware → 85; skor tidak < 0; batas 50/51 dan 80/81 |
-| `test_sanitize.py` | `sensor_nama()`, `sanitasi_teks_csv()`, `sanitasi_waktu()`, `ke_int()` | `Rohit` → `R****T`; kosong → `A****M`; `<script>` dibuang; `=1+1` → `'=1+1`; `99:99` → `00:00` |
-| `test_scenario.py` | `pilih_skenario()`, `versi_publik()`, isi `skenario.json` | 1 skenario per kategori; `isMalware`/`hintText` tidak ada di versi publik; `id` unik; setiap `realName` ada di `dummy_files/` |
-| `test_api.py` | Semua endpoint via Flask test client | alur start → decide → hint → finish; kode error 400/401/404/409/429 |
+| File | Yang diuji | Jumlah |
+|------|------------|--------|
+| `test_linux_utils.py` | `core/linux_utils.py`: nama berbahaya ditolak, path traversal & symlink, `shell=False` + `--`, timeout/exit code/keluaran aneh → `UtilitasLinuxError`, pesan error tidak bocor, fallback non-Linux berlabel, tes Linux asli | 18 (3 di-skip di Windows) |
+| `test_sinkron_frontend.py` | 4 endpoint yang dipanggil frontend (`/api/dashboard-stats`, `/api/leaderboard`, `/api/submit-score`, `/api/submit-feedback`) dengan body **persis seperti `result.js`**, dijalankan ke **kedua** server (`app.py` CSV & `backend/` SQLite); validasi skor/waktu; batas kiriman per IP; sanitasi; logika `core/algorithms.py` == `backend/app`; `skenario.json` == `SCENARIO_BANK`; semua file skenario ada di `dummy_files/` | 30 |
 
-### 2.1 Fixture bersama (`tests/conftest.py`)
+Rencana tambahan (belum ada): `test_scenario.py` (alur `/api/session/*`), `test_admin.py`
+(setup/login/penundaan dengan `ADMIN_PASSWORD_PATH` & `ADMIN_LOCK_PATH` sementara).
 
-```python
-import os, sys, pytest
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
-from app import create_app
-
-@pytest.fixture
-def app(tmp_path):
-    return create_app({"DB_PATH": str(tmp_path / "test.db"), "ADMIN_PIN": "1234",
-                       "LEGACY_HASIL_CSV": "", "LEGACY_FEEDBACK_CSV": ""})
-
-@pytest.fixture
-def client(app):
-    return app.test_client()
-```
-> `create_app(config_override)` dipanggil setelah `Config` dimuat, sehingga override ini
-> berlaku. Kosongkan path CSV lama agar database test benar-benar kosong.
-
-### 2.2 Contoh test
+### 2.1 Pola fixture
 
 ```python
-# tests/test_scoring.py
-from app.scoring.calculator import nilai, kategori_risiko
+# backend/ dengan database sementara
+from backend.app import create_app
+app = create_app({"TESTING": True, "DB_PATH": str(tmp / "test.db"),
+                  "LEGACY_HASIL_CSV": "", "LEGACY_FEEDBACK_CSV": ""})
 
-def test_skor_sempurna():
-    assert nilai(0, 0, 0) == (100, "RENDAH")
+# app.py (root) — dimuat dengan nama lain agar tidak bentrok dengan paket backend/app,
+# lalu path CSV diarahkan ke folder sementara
+mock.patch.object(core.algorithms, "HASIL_CSV_PATH", str(tmp / "hasil.csv"))
+mock.patch.object(core.algorithms, "FEEDBACK_CSV_PATH", str(tmp / "feedback_user.csv"))
 
-def test_penalti_gabungan():
-    assert nilai(1, 1, 1) == (75, "SEDANG")      # 100 - 15 - 5 - 5
-
-def test_skor_tidak_negatif():
-    assert nilai(20, 0, 0) == (0, "TINGGI")
-
-def test_batas_kategori():
-    assert kategori_risiko(50) == "TINGGI"
-    assert kategori_risiko(51) == "SEDANG"
-    assert kategori_risiko(80) == "SEDANG"
-    assert kategori_risiko(81) == "RENDAH"
-```
-
-```python
-# tests/test_api.py
-def test_alur_sesi(client):
-    r = client.post("/api/session/start", json={"username": "Rohit"})
-    assert r.status_code == 201
-    data = r.get_json()["data"]
-    assert data["masked_name"] == "R****T"
-    for s in data["scenarios"]:
-        assert "hintText" not in s
-        assert all("isMalware" not in f for f in s["files"])
-
-    sid, f = data["session_id"], data["scenarios"][0]["files"][0]
-    assert client.post(f"/api/session/{sid}/decide", json={"file_id": f["id"], "action": "delete"}).status_code == 200
-    assert client.post(f"/api/session/{sid}/decide", json={"file_id": f["id"], "action": "open"}).status_code == 409
-
-    r = client.post(f"/api/session/{sid}/finish")
-    assert r.status_code == 200
-    assert 0 <= r.get_json()["data"]["score"] <= 100
-    assert client.post(f"/api/session/{sid}/finish").status_code == 404   # sesi sudah dihapus
-
-def test_path_traversal_ditolak(client):
-    assert client.get("/api/hash?file=../../backend/wsgi.py").status_code == 400
-
-def test_admin_wajib_login(client):
-    assert client.get("/api/admin/feedback").status_code == 401
-
-def test_rate_limit_login(client):
-    for _ in range(5):
-        client.post("/api/admin/login", json={"pin": "salah"})
-    assert client.post("/api/admin/login", json={"pin": "1234"}).status_code == 429
+# batas kiriman per IP disimpan di memori -> kosongkan tiap tes
+backend.app.common.kiriman.reset_batas_kiriman()
 ```
 
 ---
 
 ## 3. Uji API Manual (curl)
 
-Jalankan server: `python backend/wsgi.py`
+Jalankan salah satu server: `python app.py` atau `python backend/wsgi.py`.
 
 ```bash
 B=http://127.0.0.1:5000/api
 
-# Mulai sesi
-curl -s -X POST $B/session/start -H "Content-Type: application/json" -d '{"username":"Rohit"}'
+# --- Endpoint yang dipakai frontend ---
+curl -s $B/dashboard-stats
+curl -s "$B/leaderboard?limit=3"
+curl -s -X POST $B/submit-score    -H "Content-Type: application/json" -d '{"username":"Rohit","score":85,"time":"01:45"}'
+curl -s -X POST $B/submit-feedback -H "Content-Type: application/json" -d '{"user":"R****T","score":85,"message":"Bagus"}'
+curl -s -X POST $B/submit-score    -H "Content-Type: application/json" -d '{"username":"x","score":87,"time":"01:45"}'   # 400
 
-# Putuskan file (ganti SID & FILE_ID)
-curl -s -X POST $B/session/SID/decide -H "Content-Type: application/json" -d '{"file_id":"FILE_ID","action":"delete"}'
-
-# Hint & selesai
-curl -s -X POST $B/session/SID/hint -H "Content-Type: application/json" -d '{"scenario_id":"SCENARIO_ID"}'
+# --- Alur sesi (skor dihitung server) ---
+curl -s -X POST $B/session/start
+curl -s -X POST $B/session/SID/decide -H "Content-Type: application/json" -d '{"file_id":"FILE_ID","action":"delete","inspected":true}'
+curl -s -X POST $B/session/SID/hint   -H "Content-Type: application/json" -d '{"scenario_id":"SCENARIO_ID"}'
 curl -s -X POST $B/session/SID/finish
+curl -s -X POST $B/session/SID/save   -H "Content-Type: application/json" -d '{"username":"Rohit"}'
 
-# Utilitas Linux
+# --- Utilitas Linux ---
 curl -s "$B/inspect?file=Patch_Update_v2.zip"
 curl -s "$B/hash?file=Patch_Update_v2.zip"
 
-# Leaderboard & statistik
-curl -s "$B/leaderboard?limit=3"
-curl -s $B/dashboard-stats
-
-# Feedback
-curl -s -X POST $B/feedback -H "Content-Type: application/json" -d '{"user":"R****T","score":80,"message":"Bagus"}'
-
-# Admin (simpan cookie)
-curl -s -c jar.txt -X POST $B/admin/login -H "Content-Type: application/json" -d '{"pin":"1234"}'
+# --- Admin (kirim SHA-256 dari password, simpan cookie) ---
+H=$(printf '%s' 'password-admin' | sha256sum | cut -d' ' -f1)
+curl -s $B/admin/status
+curl -s -c jar.txt -X POST $B/admin/login -H "Content-Type: application/json" -d "{\"password_hash\":\"$H\"}"
 curl -s -b jar.txt $B/admin/feedback
 curl -s -b jar.txt -o feedback_user.csv $B/admin/export/feedback
 ```
@@ -156,19 +95,24 @@ curl -s -b jar.txt -o feedback_user.csv $B/admin/export/feedback
 
 | ID | Uji | Langkah | Hasil yang diharapkan | Kontrol |
 |----|-----|---------|-----------------------|---------|
-| T-01 | Kunci jawaban tidak bocor | Buka DevTools → Network → respons `/session/start` | Tidak ada `isMalware`, `hintText`, `goodEnding`, `badEnding` | S-01 |
+| T-01 | Kunci jawaban tidak bocor (server) | DevTools → Network → respons `/session/start` | Tidak ada `isMalware`, `payloadStatus`, `hintText`, ending | S-01 |
 | T-02 | Keputusan ganda | Kirim `decide` 2x untuk file yang sama | Kedua kali `409` | S-02 |
 | T-03 | Path traversal | `/api/hash?file=../../.env`, `?file=..%2F..%2F.env`, `?file=..\\..\\.env` | `400`, isi file tidak tampil | S-07 |
-| T-04 | Command injection | `/api/inspect?file=a.pdf;ls` dan `?file=$(whoami)` | `400`, perintah tidak dijalankan | S-08 |
+| T-04 | Command injection | `/api/inspect?file=a.pdf;ls`, `?file=$(whoami)`, `?file=-rf` | `400` (file tidak ada), perintah tidak dijalankan | S-08 |
 | T-05 | SQL injection | Feedback `{"message":"'); DROP TABLE scores;--"}` | Tersimpan sebagai teks biasa, tabel tetap ada | S-04 |
 | T-06 | XSS | Nama `<img src=x onerror=alert(1)>`, feedback `<script>alert(1)</script>` | Tidak ada alert di leaderboard / menu admin | S-05 |
 | T-07 | CSV injection | Feedback `=HYPERLINK("http://contoh")`, ekspor, buka di Excel | Sel tampil sebagai teks `'=HYPERLINK...` | S-06 |
-| T-08 | Brute force PIN | 6x login dengan PIN salah | Percobaan ke-6 `429` | S-09 |
+| T-08 | Brute force password admin | 5x `POST /admin/login` dengan hash salah | Percobaan ke-5 `429` + `Retry-After: 30` | S-09 |
 | T-09 | Akses admin tanpa login | `GET /api/admin/export/scores` tanpa cookie | `401` | S-09 |
 | T-10 | Body besar | POST body > 16 KB | `413` | S-11 |
-| T-11 | Security headers | `curl -I http://127.0.0.1:5000/api/leaderboard` | Ada `X-Frame-Options: DENY`, `nosniff`, `Cache-Control: no-store` | S-10 |
+| T-11 | Security headers | `curl -I http://127.0.0.1:5000/api/leaderboard` | Ada `X-Frame-Options: DENY`, `nosniff` | S-10 |
 | T-12 | Folder data tertutup | Buka `/data/skenario.json` dan `/data/filemate.db` di browser | `404` | S-15 |
 | T-13 | Scanner lokal | Scan file di beranda sambil memantau Network | Tidak ada upload file | S-14 |
+| T-14 | Skor palsu di luar aturan | `submit-score` dengan `score` 87 / 101 / `"85"` / `true` | `400 "Skor tidak valid."` | S-16 |
+| T-15 | Spam leaderboard | 6x `submit-score` dalam 10 menit dari IP yang sama | Ke-6 `429` | S-16 |
+
+> T-08 dan T-15 mengubah state penundaan/batas. Jalankan di server uji, atau hapus
+> `data/admin_lock.json` dan restart server setelahnya.
 
 ---
 
@@ -176,9 +120,10 @@ curl -s -b jar.txt -o feedback_user.csv $B/admin/export/feedback
 
 | Lingkungan | Yang dicek | Hasil yang diharapkan |
 |------------|------------|-----------------------|
-| Windows (dev) | `/api/hash`, `/api/inspect` | Berhasil; `engine` = `... (Fallback)` bila perintah Linux tidak ada |
+| Windows (dev) | `/api/hash`, `/api/inspect` di `app.py` | Berhasil; `engine` berisi `fallback non-Linux`, `mime_linux: null` |
+| Windows (dev) | Endpoint yang sama di `backend/` | Memakai `sha256sum` Git Bash bila ada di PATH, selain itu `(Fallback)` |
 | Linux / server | Endpoint yang sama | `engine` = `Linux CLI (...)`; hash sama dengan `sha256sum` manual |
-| Tanpa backend | Buka `page/index.html` langsung dari file | Halaman tetap tampil memakai data lokal |
+| Tanpa backend | Buka `page/index.html` langsung dari file | Halaman tetap tampil memakai data lokal (`SCENARIO_BANK` + `localStorage`) |
 | Tema | Gelap/terang di semua halaman | Teks terbaca, pilihan tersimpan |
 | Layar HP (360 px) | Semua halaman | Tidak ada scroll horizontal |
 | Browser | Chrome, Firefox, Edge | Fungsi utama berjalan |
@@ -190,7 +135,8 @@ curl -s -b jar.txt -o feedback_user.csv $B/admin/export/feedback
 Lakukan dengan **minimal 5 responden** di luar tim. Catat kode responden (`P01`, `P02`, …) dari feedback.
 
 ### 6.1 Persiapan
-- [ ] Server berjalan, database sudah di-reset (atau pakai `DB_PATH` khusus sesi uji)
+- [ ] Server berjalan, data sudah di-reset (menu admin → clear, atau `DB_PATH` khusus sesi uji)
+- [ ] `SUBMIT_BATAS_PER_IP` dinaikkan bila responden memakai Wi-Fi yang sama (SECURITY.md K-09)
 - [ ] Formulir observasi & stopwatch siap
 - [ ] Responden belum pernah melihat kunci jawaban
 
@@ -222,8 +168,9 @@ Lakukan dengan **minimal 5 responden** di luar tim. Catat kode responden (`P01`,
 6. Saya akan merekomendasikan FileMate ke teman.
 
 ### 6.5 Rekap
-Ekspor hasil dari menu admin (`hasil.csv` & `feedback_user.csv`), lalu catat rata-rata skor,
-sebaran kategori risiko, dan 3 masukan utama di `CHANGELOG.md` atau laporan.
+Ekspor hasil dari server (`hasil.csv` & `feedback_user.csv` — menu admin, atau langsung dari
+`data/` bila memakai `app.py`), lalu catat rata-rata skor, sebaran kategori risiko, dan 3 masukan
+utama di `CHANGELOG.md` atau laporan.
 
 ---
 
@@ -232,3 +179,4 @@ sebaran kategori risiko, dan 3 masukan utama di `CHANGELOG.md` atau laporan.
 | Tanggal | Penguji | Lingkup | Hasil |
 |---------|---------|---------|-------|
 | 14/11/2026 | Kaysan | Smoke test semua endpoint via Flask test client (Windows) | Semua endpoint merespons sesuai kontrak; path traversal ditolak (`400`); keputusan ganda `409`; admin tanpa login `401`; endpoint tak dikenal `404` JSON |
+| 21/11/2026 | Kaysan (dibantu Claude) | `python -m unittest tests.test_linux_utils tests.test_sinkron_frontend` (Windows, Python 3.10, Node 26) | **48 tes OK, 3 di-skip** (tes Linux asli & symlink). Kedua server menjawab identik untuk 4 endpoint frontend |

@@ -82,7 +82,7 @@ def feedback_sesi(sid):
     except Exception:
         service.batalkan_feedback(sid)
         raise
-    return sukses({"kode_responden": kode}, 201)
+    return sukses({"saved": True, "kode_responden": kode}, 201)
 
 
 # ---------------------- Utilitas Linux --------------------------------

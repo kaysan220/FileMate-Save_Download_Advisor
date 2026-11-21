@@ -12,7 +12,7 @@ FileMate/
 ├── README.md                                                                    --- BELUM ADA
 ├── CHANGELOG.md                                                                 --- BELUM ADA
 ├── .env.example                  ← SECRET_KEY, ADMIN_PIN                        --- OK 18/11/2026
-├── .gitignore                    ← .env, *.db, __pycache__, data/exports/*      --- SEBAGIAN 18/11/2026
+├── .gitignore                    ← .env, *.db, __pycache__, data/exports/*      --- OK 21/11/2026 (baris UTF-16 diperbaiki; data/exports/* belum)
 │
 ├── docs/                         --- OK 14/11/2026
 │   ├── ARCHITECTURE.md           ← gambaran sistem, alur, struktur folder        --- OK 14/11/2026 
@@ -85,7 +85,7 @@ FileMate/
 │
 ├── data/                         ← TIDAK pernah disajikan ke browser
 │   ├── scenarios/skenario.json   ← sekarang di data/skenario.json                --- OK 18/11/2026 (beda lokasi)
-│   ├── dummy_files/              ← 18 file dummy                                 --- OK 18/11/2026
+│   ├── dummy_files/              ← 19 file dummy                                 --- OK 21/11/2026 (+Runtime_Pack_v1.msi)
 │   ├── filemate.db               ← dibuat otomatis oleh db.init_db()             --- OK 18/11/2026
 │   └── exports/
 │       ├── hasil.csv             ← sekarang di data/hasil.csv                    --- OK 18/11/2026 (beda lokasi)
@@ -97,7 +97,8 @@ FileMate/
 │   └── export_csv.py             ← belum perlu: export lewat menu admin          --- DIGANTIKAN /api/admin/export/<jenis>
 │
 ├── tests/                                                                       --- SEBAGIAN
-│   ├── test_linux_utils.py       ← (TAMBAHAN) ada, tetapi GAGAL (lihat catatan)  --- PERLU DIPERBAIKI
+│   ├── test_linux_utils.py       ← (TAMBAHAN) 18 tes lulus                       --- OK 21/11/2026
+│   ├── test_sinkron_frontend.py  ← (TAMBAHAN) 30 tes: kedua server == frontend   --- OK 21/11/2026
 │   ├── test_scoring.py                                                           --- BELUM ADA
 │   ├── test_sanitize.py                                                          --- BELUM ADA
 │   ├── test_scenario.py                                                          --- BELUM ADA
@@ -451,3 +452,56 @@ Cara cek: kode dibaca per file + uji cepat kedua server dengan Flask test client
       bukan di data/scenarios/ & data/exports/.
     - buat_dummy.py ada di data/, bukan di scripts/.
     - .env.example berisi ADMIN_RECOVERY_HASH (bukan ADMIN_PIN).
+
+
+=====================================================
+SINKRONISASI BACKEND <-> FRONTEND --- SELESAI 21/11/2026 (branch Kaysan--Backend)
+=====================================================
+    Tujuan: backend mengikuti frontend yang ADA SEKARANG (tampilan/js versi 14/11).
+    Frontend (page/, tampilan/, image/) TIDAK diubah. Juga tidak diubah:
+    backend/app/simulation/linux_utils.py dan tests/test_linux_utils.py.
+
+    Frontend hanya memanggil 4 endpoint:
+      GET  /api/dashboard-stats   (common.js)
+      GET  /api/leaderboard       (leaderboard.js)
+      POST /api/submit-score      (result.js)  {username, score, time}
+      POST /api/submit-feedback   (result.js)  {user, score, message}
+    Sebelumnya backend/ TIDAK punya /api/submit-score & /api/submit-feedback
+    (hanya app.py) -> frontend tidak bisa menyimpan skor bila server B dipakai.
+
+    Perubahan:
+      backend/app/common/kiriman.py (BARU)  <- validasi skor/feedback + batas per IP,
+                                               dipakai app.py DAN backend/ (aturan sama)
+      backend/app/leaderboard/routes.py     <- tambah POST /api/submit-score
+      backend/app/feedback/routes.py        <- tambah POST /api/submit-feedback
+      backend/app/__init__.py, config.py    <- handler KirimanError, SUBMIT_BATAS_PER_IP,
+                                               SUBMIT_JENDELA_DETIK
+      backend/app/common/sanitize.py        <- sensor_nama() idempoten (A**** tidak jadi A*****)
+      backend/app/scoring/calculator.py     <- KELIPATAN_SKOR (= 5)
+      backend/app/leaderboard/repository.py <- kategori tak dikenal dihitung dari skor
+      backend/app/simulation/routes.py      <- respons feedback sesi {saved, kode_responden}
+      app.py                                <- pakai kiriman.py; ?limit= di leaderboard;
+                                               /inspect & /hash -> 400 / 503
+      core/algorithms.py                    <- disamakan dengan backend (sensor, sanitasi CSV,
+                                               kategori); tulis_feedback() -> kode P01..;
+                                               waktu YYYY-MM-DD HH:MM:SS; penulisan CSV dikunci
+      core/linux_utils.py                   <- ditulis ulang mengikuti tests/test_linux_utils.py
+      core/__init__.py                      <- ekspor UtilitasLinuxError, kategori_risiko
+      data/buat_dummy.py                    <- header MSI (D0 CF 11 E0)
+      data/dummy_files/Runtime_Pack_v1.msi  <- (BARU) file ke-19, sebelumnya hilang
+      tests/test_sinkron_frontend.py (BARU) <- 30 tes: request persis frontend ke KEDUA server
+      .env.example                          <- SUBMIT_BATAS_PER_IP, SUBMIT_JENDELA_DETIK
+      docs/API_CONTRACT.md, ARCHITECTURE.md, DATA_SCHEMA.md, SECURITY.md, TESTING.md,
+      Arsitektur_Filemate_v1.0.md, PANDUAN_TIM_BACKEND.md, data/PANDUAN_ROHIT.txt
+
+    Hasil: python -m unittest discover -s tests -> 48 tes OK (3 di-skip di Windows).
+           data/skenario.json dicek IDENTIK dengan SCENARIO_BANK di scenario_data.js.
+
+    Catatan / masih terbuka:
+      - Batas kiriman bawaan 5 / IP / 10 menit. Saat user testing di Wi-Fi kampus
+        (semua laptop 1 IP publik) naikkan SUBMIT_BATAS_PER_IP di .env (SECURITY.md K-09).
+      - Kalau soal diubah: ubah data/skenario.json DAN SCENARIO_BANK, lalu jalankan
+        python data/buat_dummy.py dan tes di atas.
+      - Status [B] di atas: no.1 (tes gagal) SELESAI; no.2 (/api/submit-*) sekarang SENGAJA
+        dipertahankan di kedua server karena dipakai frontend; no.3 .gitignore SELESAI,
+        tinggal git rm --cached untuk __pycache__/ & data/admin_password.json.

@@ -8,7 +8,7 @@ Selamat datang Tim Satgas Salah Download! Folder proyek ini sudah disiapkan deng
    - Saat ini berjalan mandiri menggunakan `localStorage` agar bebas konflik saat demo UI.
 2. **`data/`** — **Rohit Al Bukhori (Scenario & Data Handling Developer)**
    - `data/skenario.json` : Bank skenario ancaman (Spoofing, Hash, Fatigue).
-   - `data/buat_dummy.py` : Skrip otomatis pembuat 18 file fisik dummy di `data/dummy_files/`.
+   - `data/buat_dummy.py` : Skrip otomatis pembuat 19 file fisik dummy di `data/dummy_files/`.
    - `data/hasil.csv` & `data/feedback_user.csv` : Tempat penyimpanan log Leaderboard & masukan user.
 3. **`core/algorithms.py` & `app.py`** — **Kaysan Nawfal (Backend & Logic Developer)**
    - Berisi 5 fungsi utama Algoritma & Pemrograman (`baca_skenario`, `nilai`, `sensor_nama`, `tulis_log`, `tulis_feedback`) dan rute server Flask (`app.py`).

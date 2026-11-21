@@ -9,6 +9,7 @@ from datetime import timedelta
 
 from flask import Flask, redirect, send_from_directory
 
+from .common.kiriman import KirimanError
 from .common.responses import gagal
 from .config import Config, ROOT_DIR
 
@@ -67,6 +68,11 @@ def _pasang_error_handler(app):
         if request.path.startswith("/api/"):
             return gagal(pesan, status)
         return e
+
+    # Kiriman skor/feedback frontend ditolak (validasi / batas per IP) — sama dengan app.py
+    @app.errorhandler(KirimanError)
+    def kiriman_ditolak(e):
+        return gagal(e, e.status)
 
     @app.errorhandler(404)
     def tidak_ditemukan(e):

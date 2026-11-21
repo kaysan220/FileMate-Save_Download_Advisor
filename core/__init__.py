@@ -17,6 +17,7 @@ from .algorithms import (
     SKENARIO_PATH,
     baca_leaderboard,
     baca_skenario,
+    kategori_risiko,
     nilai,
     ringkasan_dashboard,
     sanitasi_teks_csv,
@@ -26,6 +27,7 @@ from .algorithms import (
 )
 from .linux_utils import (
     DUMMY_DIR,
+    UtilitasLinuxError,
     jalankan_inspeksi_linux,
     jalankan_sha256sum_linux,
     validasi_path_aman,
@@ -43,6 +45,7 @@ __all__ = [
     # algorithms.py
     "baca_skenario",
     "nilai",
+    "kategori_risiko",
     "sensor_nama",
     "sanitasi_teks_csv",
     "tulis_log",
@@ -50,6 +53,7 @@ __all__ = [
     "tulis_feedback",
     "ringkasan_dashboard",
     # linux_utils.py
+    "UtilitasLinuxError",
     "validasi_path_aman",
     "jalankan_sha256sum_linux",
     "jalankan_inspeksi_linux",
